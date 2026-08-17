@@ -364,7 +364,7 @@
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 20px;
-            width: 320px;
+            width: 340px;
             max-width: 90%;
             display: flex;
             flex-direction: column;
@@ -374,13 +374,14 @@
             display: flex;
             justify-content: flex-end;
             gap: 8px;
+            margin-top: 4px;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>ソード・ワールド2.5 セッション管理 <span>v1.2</span></h1>
+        <h1>ソード・ワールド2.5 セッション管理 <span>v1.3</span></h1>
         <div class="header-actions">
             <span class="save-status" id="save-status">自動保存済み</span>
             <button class="secondary small" onclick="exportData()">データ書き出し (JSON)</button>
@@ -466,6 +467,26 @@
         <div class="modal-box">
             <h3 style="font-size:1rem; color:#fff;">バフ・デバフの付与</h3>
             <input type="hidden" id="modal-char-id">
+            
+            <!-- 階層型プリセット選択 -->
+            <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                <label style="font-size:0.75rem; color:var(--accent-color); font-weight:bold; display:block; margin-bottom:4px;">カテゴリプリセット選択</label>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <select id="preset-category" onchange="updatePresetLevels()" style="width:100%;">
+                        <option value="">カテゴリを選択</option>
+                        <option value="練技">練技</option>
+                    </select>
+                    <div style="display:flex; gap:6px;">
+                        <select id="preset-level" onchange="updatePresetSkills()" disabled style="flex:1;">
+                            <option value="">レベル</option>
+                        </select>
+                        <select id="preset-skill" onchange="applyRengiPreset()" disabled style="flex:2;">
+                            <option value="">練技名を選択</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <label style="font-size:0.75rem; color:var(--text-muted)">効果名</label>
                 <input type="text" id="buff-name" placeholder="例: マッスルベアー / 転倒 / 毒" style="width:100%;">
@@ -483,14 +504,11 @@
                 <input type="number" id="buff-duration" value="3" min="0" style="width:100%;">
             </div>
             
-            <div style="font-size:0.75rem; color:var(--text-muted);">プリセットからクイック選択:</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">クイックデバフ・状態異常:</div>
             <div style="display:flex; flex-wrap:wrap; gap:4px;">
-                <button class="secondary small" onclick="setBuffPreset('マッスルベアー(筋力+6)', 'buff', 3)">マッスルベアー</button>
-                <button class="secondary small" onclick="setBuffPreset('キャッツアイ(命中+1)', 'buff', 3)">キャッツアイ</button>
-                <button class="secondary small" onclick="setBuffPreset('ガゼルフット(回避+1)', 'buff', 3)">ガゼルフット</button>
                 <button class="secondary small" onclick="setBuffPreset('転倒', 'debuff', 0)">転倒</button>
                 <button class="secondary small" onclick="setBuffPreset('毒', 'debuff', 3)">毒</button>
-                <button class="secondary small" onclick="setBuffPreset('防護点+2', 'buff', 3)">防護点+2</button>
+                <button class="secondary small" onclick="setBuffPreset('麻痺', 'debuff', 3)">麻痺</button>
             </div>
 
             <div class="modal-buttons">
@@ -508,6 +526,42 @@
     };
 
     const STORAGE_KEY = 'SW25_SESSION_DATA_V1';
+
+    // --- 練技プリセットデータ ---
+    const RengiData = {
+        "練技": {
+            "1LV": [
+                "アンチボディ",
+                "オウルビジョン",
+                "ガゼルフット",
+                "キャッツアイ",
+                "ストロングブラッド",
+                "ドラゴンテイル",
+                "ビートルスキン",
+                "マッスルベアー",
+                "メディテーション",
+                "ラビットイヤー"
+            ],
+            "5LV": [
+                "ケンタウロスレッグ",
+                "ジャイアントアーム",
+                "スフィンクスノレッジ",
+                "デーモンフィンガー",
+                "ファイアブレス",
+                "ワイドウィング"
+            ],
+            "10LV": [
+                "カメレオンカムフラージュ",
+                "クラーケンスタビリティ",
+                "ストライダウォーク",
+                "スパイダーウェブ",
+                "タイタンフット",
+                "トロールバイタル",
+                "バルーンシードショット",
+                "フェンリルバイト"
+            ]
+        }
+    };
 
     // --- 初期化 & ローカルストレージ ---
     window.addEventListener('DOMContentLoaded', () => {
@@ -772,16 +826,78 @@
         });
     }
 
-    // --- バフ・デバフ機能 ---
+    // --- バフ・デバフ機能 & 階層プルダウン制御 ---
     function openBuffModal(charId) {
         document.getElementById('modal-char-id').value = charId;
         document.getElementById('buff-name').value = '';
+        document.getElementById('buff-type').value = 'buff';
         document.getElementById('buff-duration').value = '3';
+
+        // 階層セレクトのリセット
+        document.getElementById('preset-category').value = '';
+        document.getElementById('preset-level').innerHTML = '<option value="">レベル</option>';
+        document.getElementById('preset-level').disabled = true;
+        document.getElementById('preset-skill').innerHTML = '<option value="">練技名を選択</option>';
+        document.getElementById('preset-skill').disabled = true;
+
         document.getElementById('buff-modal').classList.add('active');
     }
 
     function closeBuffModal() {
         document.getElementById('buff-modal').classList.remove('active');
+    }
+
+    function updatePresetLevels() {
+        const catSelect = document.getElementById('preset-category');
+        const lvlSelect = document.getElementById('preset-level');
+        const sklSelect = document.getElementById('preset-skill');
+
+        lvlSelect.innerHTML = '<option value="">レベル</option>';
+        sklSelect.innerHTML = '<option value="">練技名を選択</option>';
+        sklSelect.disabled = true;
+
+        const cat = catSelect.value;
+        if (cat && RengiData[cat]) {
+            lvlSelect.disabled = false;
+            Object.keys(RengiData[cat]).forEach(lvl => {
+                const opt = document.createElement('option');
+                opt.value = lvl;
+                opt.textContent = lvl;
+                lvlSelect.appendChild(opt);
+            });
+        } else {
+            lvlSelect.disabled = true;
+        }
+    }
+
+    function updatePresetSkills() {
+        const catSelect = document.getElementById('preset-category');
+        const lvlSelect = document.getElementById('preset-level');
+        const sklSelect = document.getElementById('preset-skill');
+
+        sklSelect.innerHTML = '<option value="">練技名を選択</option>';
+
+        const cat = catSelect.value;
+        const lvl = lvlSelect.value;
+        if (cat && lvl && RengiData[cat][lvl]) {
+            sklSelect.disabled = false;
+            RengiData[cat][lvl].forEach(skill => {
+                const opt = document.createElement('option');
+                opt.value = skill;
+                opt.textContent = skill;
+                sklSelect.appendChild(opt);
+            });
+        } else {
+            sklSelect.disabled = true;
+        }
+    }
+
+    function applyRengiPreset() {
+        const sklSelect = document.getElementById('preset-skill');
+        const skillName = sklSelect.value;
+        if (skillName) {
+            setBuffPreset(skillName, 'buff', 3);
+        }
     }
 
     function setBuffPreset(name, type, duration) {

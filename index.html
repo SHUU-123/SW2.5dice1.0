@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SW2.5 オフセ・サポーター</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #1e1e24;
+      color: #f4f4f6;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background: #2b2d42;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    h2 { margin-top: 0; font-size: 1.2rem; color: #8d99ae; }
+    .btn {
+      background: #ef233c;
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-secondary { background: #4a4e69; }
+    .btn-lg { width: 100%; font-size: 1.4rem; padding: 18px; }
+    .dice-result {
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin-top: 12px;
+      color: #edf2f4;
+    }
+    .tracker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .counter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .counter-value { font-size: 1.5rem; font-weight: bold; min-width: 50px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <!-- 2d6ダイス機能 -->
+  <div class="card">
+    <h2>2d6 判定ロール</h2>
+    <button class="btn btn-lg" onclick="roll2d6()">2d6 を振る</button>
+    <div id="diceOutput" class="dice-result">出目: -</div>
+  </div>
+
+  <!-- クイックHPトラッカー -->
+  <div class="card">
+    <h2>簡易HPトラッカー</h2>
+    <div class="tracker-grid">
+      <div style="background:#3d405b; padding:12px; border-radius:8px;">
+        <strong>魔物/キャラ A</strong>
+        <div class="counter-row">
+          <button class="btn btn-secondary" onclick="changeHP('hp1', -5)">-5</button>
+          <button class="btn btn-secondary" onclick="changeHP('hp1', -1)">-1</button>
+          <span id="hp1" class="counter-value">30</span>
+          <button class="btn btn-secondary" onclick="changeHP('hp1', 1)">+1</button>
+          <button class="btn btn-secondary" onclick="changeHP('hp1', 5)">+5</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function roll2d6() {
+      let d1 = Math.floor(Math.random() * 6) + 1;
+      let d2 = Math.floor(Math.random() * 6) + 1;
+      let sum = d1 + d2;
+      let text = `出目: ${d1} + ${d2} = ${sum}`;
+
+      if (sum === 2) {
+        text += " (自動失敗！)";
+      } else if (sum === 12) {
+        text += " (自動成功 / クリティカル！)";
+      }
+      document.getElementById('diceOutput').innerText = text;
+    }
+
+    function changeHP(id, val) {
+      let el = document.getElementById(id);
+      let current = parseInt(el.innerText, 10);
+      el.innerText = Math.max(0, current + val);
+    }
+  </script>
+</body>
+</html>

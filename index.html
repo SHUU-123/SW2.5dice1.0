@@ -200,18 +200,31 @@
           <i data-lucide="dices" class="w-4 h-4 text-amber-400"></i> ダイスロール
         </h2>
 
-        <!-- ボタン式ダイス (2d6 & 2d6+X) -->
+        <!-- ボタン式ダイス (2d6 & 修正値ボタン ページ分割) -->
         <div class="space-y-2">
-          <button onclick="roll2d6(0)" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2 shadow-md shadow-amber-950">
-            <i data-lucide="dice-5" class="w-4 h-4"></i> 2d6 を振る
+          <button onclick="roll2d6(0)" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-sm transition flex items-center justify-center gap-2 shadow-md shadow-amber-950">
+            <i data-lucide="dice-5" class="w-4 h-4"></i> 2d6 (修正なし)
           </button>
           
-          <div class="flex items-center gap-1.5">
-            <span class="text-xs text-slate-400 font-semibold whitespace-nowrap">2d6 +</span>
-            <input type="number" id="dice-modifier" value="1" min="1" max="100" class="w-full bg-slate-950 border border-slate-800 rounded-lg py-1 px-2 text-xs text-center font-bold text-amber-300 focus:outline-none">
-            <button onclick="roll2d6WithMod()" class="bg-amber-700 hover:bg-amber-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg transition whitespace-nowrap">
-              ロール
-            </button>
+          <!-- 修正値付き 2d6 (ページ分割コントロール) -->
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-300 flex items-center gap-1">
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-amber-400"></i> 修正値ロール
+              </span>
+              <div class="flex items-center gap-1">
+                <button onclick="changeModPage(-1)" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 px-2 py-0.5 rounded text-xs border border-slate-700 font-bold">‹</button>
+                <select id="mod-page-select" onchange="setModPage(parseInt(this.value))" class="bg-slate-900 border border-slate-700 text-amber-300 text-xs rounded py-0.5 px-1 font-mono font-bold focus:outline-none">
+                  <!-- JSで動的生成 -->
+                </select>
+                <button onclick="changeModPage(1)" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 px-2 py-0.5 rounded text-xs border border-slate-700 font-bold">›</button>
+              </div>
+            </div>
+
+            <!-- ボタンレイアウト (2列グリッド) -->
+            <div id="mod-buttons-container" class="grid grid-cols-2 gap-1.5">
+              <!-- JSで動的生成 -->
+            </div>
           </div>
         </div>
 
@@ -333,13 +346,15 @@
       selectedCharId: null,
       characters: [],
       logs: [],
-      memo: ""
+      memo: "",
+      modPage: 1
     };
 
     // 初期化
     window.addEventListener('DOMContentLoaded', () => {
       loadState();
       renderRenwazaUI();
+      renderModButtons();
       render();
     });
 
@@ -353,6 +368,7 @@
       if (saved) {
         try { 
           state = JSON.parse(saved); 
+          if (!state.modPage) state.modPage = 1;
           document.getElementById('session-memo').value = state.memo || "";
         } catch (e) {}
       }
@@ -646,7 +662,54 @@
       }
     }
 
-    // --- ダイス機能 ---
+    // --- ダイス機能 (修正値ボタンページ分割管理) ---
+    function renderModButtons() {
+      const page = state.modPage || 1;
+      const select = document.getElementById('mod-page-select');
+      const container = document.getElementById('mod-buttons-container');
+      if (!select || !container) return;
+
+      // セレクトボックス更新 (1〜100 を 10 個ずつ 10 ページに分割)
+      select.innerHTML = '';
+      for (let i = 1; i <= 10; i++) {
+        const start = (i - 1) * 10 + 1;
+        const end = i * 10;
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `+${start} ～ +${end}`;
+        if (i === page) option.selected = true;
+        select.appendChild(option);
+      }
+
+      // ボタン群生成
+      container.innerHTML = '';
+      const startVal = (page - 1) * 10 + 1;
+      const endVal = page * 10;
+
+      for (let mod = startVal; mod <= endVal; mod++) {
+        const btn = document.createElement('button');
+        btn.className = 'bg-amber-700/80 hover:bg-amber-600 active:bg-amber-800 text-amber-100 font-bold py-2 px-2 rounded-lg text-xs transition border border-amber-500/40 shadow-sm flex items-center justify-center gap-1 active:scale-95';
+        btn.onclick = () => roll2d6(mod);
+        btn.innerHTML = `<span class="text-slate-300 font-normal">2d6+</span><span class="text-amber-200 text-sm font-extrabold">${mod}</span>`;
+        container.appendChild(btn);
+      }
+    }
+
+    function changeModPage(delta) {
+      let newPage = (state.modPage || 1) + delta;
+      if (newPage < 1) newPage = 10;
+      if (newPage > 10) newPage = 1;
+      state.modPage = newPage;
+      renderModButtons();
+      saveState();
+    }
+
+    function setModPage(page) {
+      state.modPage = page;
+      renderModButtons();
+      saveState();
+    }
+
     function roll2d6(mod = 0) {
       const d1 = Math.floor(Math.random() * 6) + 1;
       const d2 = Math.floor(Math.random() * 6) + 1;
@@ -659,11 +722,6 @@
 
       const modText = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : "";
       addLog(`[ダイス] 2d6${modText} ➔ [${d1},${d2}]${modText} = <strong class="text-amber-300 text-sm">${total}</strong>${extraText}`);
-    }
-
-    function roll2d6WithMod() {
-      const mod = parseInt(document.getElementById('dice-modifier').value) || 0;
-      roll2d6(mod);
     }
 
     function rollCustomDice(e) {
@@ -828,7 +886,9 @@
           const imported = JSON.parse(e.target.result);
           if (imported && Array.isArray(imported.characters)) {
             state = imported;
+            if (!state.modPage) state.modPage = 1;
             if (state.memo) document.getElementById('session-memo').value = state.memo;
+            renderModButtons();
             render();
             alert("セッションデータを無事に復元しました。");
           } else {

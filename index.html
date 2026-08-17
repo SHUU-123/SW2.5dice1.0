@@ -33,7 +33,7 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-12 select-none">
 
   <!-- ヘッダー -->
-  <header class="bg-slate-900 border-b border-slate-800 p-3 sm:p-4 sticky top-0 z-50 shadow-lg">
+  <header class="bg-slate-900 border-b border-slate-800 p-3 sm:p-4 sticky top-0 z-40 shadow-lg">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <div class="bg-amber-500/20 p-2 rounded-lg border border-amber-500/30">
@@ -52,6 +52,10 @@
         </button>
         <button onclick="resetRound()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-1.5 px-2.5 rounded-lg border border-slate-700 transition" title="ラウンドリセット">
           <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        </button>
+        <!-- 全リセットボタン -->
+        <button onclick="resetAllData()" class="bg-red-950/80 hover:bg-red-900 text-red-300 text-xs py-1.5 px-2.5 rounded-lg border border-red-800/80 transition flex items-center gap-1" title="全データをリセット">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 全リセット
         </button>
         <div class="h-4 w-px bg-slate-800 mx-1"></div>
         <button onclick="exportData()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm py-1.5 px-2.5 rounded-lg border border-slate-700 flex items-center gap-1 transition">
@@ -98,20 +102,38 @@
               <input type="number" id="char-def" placeholder="0" min="0" value="0" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
             </div>
           </div>
+          
+          <!-- マナセーブ選択ボタン -->
+          <div class="pt-1">
+            <label class="flex items-center gap-2 cursor-pointer bg-slate-950 p-2 rounded-lg border border-slate-800 hover:border-slate-700 transition">
+              <input type="checkbox" id="char-mana-save" class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-500 focus:ring-0">
+              <span class="text-xs text-indigo-300 font-bold">戦闘特技: マナセーブ</span>
+              <span class="text-[10px] text-slate-400">(練技等の自動消費MP 3➔2)</span>
+            </label>
+          </div>
+
           <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-1.5 rounded-lg text-xs transition shadow-md shadow-indigo-950">
             キャラクターを登録
           </button>
         </form>
       </div>
 
-      <!-- キャラクター一覧 -->
+      <!-- キャラクター一覧 (PC/敵/NPC 3ページ切り替え) -->
       <div class="space-y-2.5">
         <div class="flex justify-between items-center px-1">
           <span class="text-xs font-bold text-slate-400 flex items-center gap-1">
             <i data-lucide="users" class="w-3.5 h-3.5"></i> 参加者一覧 (<span id="char-count">0</span>)
           </span>
-          <span class="text-[10px] text-slate-500">※「被ダメ」ボタンで防護点引去りダメージ適用</span>
+          <span class="text-[10px] text-slate-500">※「被ダメ」ボタンで防護点引去りダメージ</span>
         </div>
+
+        <!-- 参加者一覧 ページ切替タブ -->
+        <div class="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <button onclick="setCharTab('PC')" id="char-tab-PC" class="py-1 px-2 rounded-lg text-xs font-bold transition">PC</button>
+          <button onclick="setCharTab('魔物')" id="char-tab-魔物" class="py-1 px-2 rounded-lg text-xs font-bold transition">敵 / 魔物</button>
+          <button onclick="setCharTab('NPC')" id="char-tab-NPC" class="py-1 px-2 rounded-lg text-xs font-bold transition">NPC</button>
+        </div>
+
         <div id="character-list" class="space-y-2.5">
           <!-- JSで動的生成 -->
         </div>
@@ -119,10 +141,10 @@
 
     </section>
 
-    <!-- 中央カラム：練技・ステータス付与 & メモ (4/12) -->
+    <!-- 中央カラム：練技・技能・ステータス & ログ (4/12) -->
     <section class="lg:col-span-4 space-y-4">
       
-      <!-- 練技管理 (段階的ボタン展開) -->
+      <!-- 練技管理 -->
       <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
         <div class="flex justify-between items-center mb-2.5">
           <h2 class="text-md font-bold flex items-center gap-2 text-slate-200">
@@ -130,7 +152,7 @@
           </h2>
           <label class="text-[11px] text-slate-400 flex items-center gap-1.5 cursor-pointer select-none">
             <input type="checkbox" id="auto-mp-cost" checked class="rounded bg-slate-950 border-slate-700 text-indigo-500 focus:ring-0">
-            MP3自動消費
+            MP自動消費
           </label>
         </div>
 
@@ -143,8 +165,8 @@
           </div>
 
           <!-- 各レベルの練技表示領域 -->
-          <div id="renwaza-container" class="min-h-[160px] p-2 bg-slate-950/40 border border-slate-800 rounded-lg">
-            <div id="renwaza-placeholder" class="text-center py-10 text-slate-500 text-xs">
+          <div id="renwaza-container" class="min-h-[140px] p-2 bg-slate-950/40 border border-slate-800 rounded-lg">
+            <div id="renwaza-placeholder" class="text-center py-8 text-slate-500 text-xs">
               上の「1LV」「5LV」「10LV」ボタンを押して練技を表示
             </div>
             <div id="renwaza-grid" class="grid grid-cols-2 gap-1.5 hidden">
@@ -152,6 +174,55 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- 折りたたみ技能リスト (呪歌・鼓咆・賦術) -->
+      <div class="space-y-2">
+        <!-- 呪歌リスト -->
+        <details class="bg-slate-900 rounded-xl border border-slate-800 shadow-md group">
+          <summary class="p-3 font-bold text-xs text-amber-300 flex justify-between items-center cursor-pointer select-none">
+            <span class="flex items-center gap-2"><i data-lucide="music" class="w-4 h-4 text-amber-400"></i> 呪歌（バード）リスト</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180"></i>
+          </summary>
+          <div class="p-3 pt-0 border-t border-slate-800/60 grid grid-cols-2 gap-1.5 mt-2">
+            <button onclick="castSkill('呪歌', 'モラル', 3, 3)" class="bg-slate-950 hover:bg-amber-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>モラル</span><span class="text-amber-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('呪歌', 'レジスト', 3, 3)" class="bg-slate-950 hover:bg-amber-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>レジスト</span><span class="text-amber-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('呪歌', 'ビートアップ', 3, 3)" class="bg-slate-950 hover:bg-amber-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>ビートアップ</span><span class="text-amber-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('呪歌', 'ラブソング', 3, 3)" class="bg-slate-950 hover:bg-amber-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>ラブソング</span><span class="text-amber-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('呪歌', 'ハッシュババイ', 3, 3)" class="bg-slate-950 hover:bg-amber-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>ハッシュババイ</span><span class="text-amber-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('呪歌', '終奏:ヴォイス', 18, 3)" class="bg-slate-950 hover:bg-amber-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>ヴォイス</span><span class="text-amber-400 font-bold">(18R)</span></button>
+          </div>
+        </details>
+
+        <!-- 鼓咆リスト -->
+        <details class="bg-slate-900 rounded-xl border border-slate-800 shadow-md group">
+          <summary class="p-3 font-bold text-xs text-rose-300 flex justify-between items-center cursor-pointer select-none">
+            <span class="flex items-center gap-2"><i data-lucide="flag" class="w-4 h-4 text-rose-400"></i> 鼓咆（ウォーリーダー）リスト</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180"></i>
+          </summary>
+          <div class="p-3 pt-0 border-t border-slate-800/60 grid grid-cols-2 gap-1.5 mt-2">
+            <button onclick="castSkill('鼓咆', '攻撃陣形', 1, 0)" class="bg-slate-950 hover:bg-rose-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>攻撃陣形</span><span class="text-rose-400 font-bold">(1R)</span></button>
+            <button onclick="castSkill('鼓咆', '防御陣形', 1, 0)" class="bg-slate-950 hover:bg-rose-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>防御陣形</span><span class="text-rose-400 font-bold">(1R)</span></button>
+            <button onclick="castSkill('鼓咆', '堅陣', 1, 0)" class="bg-slate-950 hover:bg-rose-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>堅陣</span><span class="text-rose-400 font-bold">(1R)</span></button>
+            <button onclick="castSkill('鼓咆', '突破陣形', 1, 0)" class="bg-slate-950 hover:bg-rose-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>突破陣形</span><span class="text-rose-400 font-bold">(1R)</span></button>
+            <button onclick="castSkill('鼓咆', '怒涛の攻勢', 1, 0)" class="bg-slate-950 hover:bg-rose-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>怒涛の攻勢</span><span class="text-rose-400 font-bold">(1R)</span></button>
+          </div>
+        </details>
+
+        <!-- 賦術リスト -->
+        <details class="bg-slate-900 rounded-xl border border-slate-800 shadow-md group">
+          <summary class="p-3 font-bold text-xs text-sky-300 flex justify-between items-center cursor-pointer select-none">
+            <span class="flex items-center gap-2"><i data-lucide="flask-conical" class="w-4 h-4 text-sky-400"></i> 賦術（アルケミスト）リスト</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180"></i>
+          </summary>
+          <div class="p-3 pt-0 border-t border-slate-800/60 grid grid-cols-2 gap-1.5 mt-2">
+            <button onclick="castSkill('賦術', 'ヴォーパルウェポン', 3, 0)" class="bg-slate-950 hover:bg-sky-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>ヴォーパルウェポン</span><span class="text-sky-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('賦術', 'クリティカルレイ', 3, 0)" class="bg-slate-950 hover:bg-sky-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>クリティカルレイ</span><span class="text-sky-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('賦術', 'バークメイル', 3, 0)" class="bg-slate-950 hover:bg-sky-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>バークメイル</span><span class="text-sky-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('賦術', 'イニシアティブ', 3, 0)" class="bg-slate-950 hover:bg-sky-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between"><span>イニシアティブ</span><span class="text-sky-400 font-bold">(3R)</span></button>
+            <button onclick="castSkill('賦術', 'パラライズミスト', 3, 0)" class="bg-slate-950 hover:bg-sky-950/40 border border-slate-800 text-slate-200 text-xs p-1.5 rounded text-left flex justify-between font-bold text-red-300"><span>パラライズミスト</span><span class="text-sky-400 font-bold">(3R)</span></button>
+          </div>
+        </details>
       </div>
 
       <!-- 付与ステータス手動追加 -->
@@ -173,38 +244,55 @@
         </form>
       </div>
 
-      <!-- セッションメモ帳 -->
-      <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800 shadow-md space-y-2">
-        <h2 class="text-xs font-bold flex items-center gap-1.5 text-slate-300">
-          <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-amber-400"></i> セッションメモ / 戦利品
-        </h2>
-        <textarea id="session-memo" oninput="saveMemo()" placeholder="ドロップ品、敵の弱点、作戦などをメモ..." class="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 resize-none focus:outline-none focus:border-amber-500/50"></textarea>
+      <!-- 移動したログ表示エリア (メイン / ステータス履歴) -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md space-y-2">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <!-- ログ切り替えタブ -->
+          <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+            <button onclick="switchLogTab('main')" id="log-tab-main" class="px-2 py-0.5 rounded text-[11px] font-bold text-amber-300 bg-slate-800">メインログ</button>
+            <button onclick="switchLogTab('status')" id="log-tab-status" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-slate-200">ステータス履歴</button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="copyCurrentLogs()" class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-0.5 transition" title="ログをコピー">
+              <i data-lucide="copy" class="w-3 h-3"></i> コピー
+            </button>
+            <button onclick="clearCurrentLogs()" class="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-0.5 transition">
+              <i data-lucide="trash-2" class="w-3 h-3"></i> 削除
+            </button>
+          </div>
+        </div>
+
+        <div id="log-container" class="space-y-1.5 max-h-[320px] overflow-y-auto text-xs pr-1 font-mono">
+          <!-- JSで動的生成 -->
+        </div>
       </div>
 
     </section>
 
-    <!-- 右カラム：ダイス機能 & ログ (3/12) -->
+    <!-- 右カラム：ダイス機能 (3/12) -->
     <section class="lg:col-span-3 space-y-4">
       
       <!-- ダイス機能 -->
       <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">
-        <h2 class="text-md font-bold flex items-center gap-2 text-slate-200">
-          <i data-lucide="dices" class="w-4 h-4 text-amber-400"></i> ダイスロール
+        <h2 class="text-md font-bold flex items-center justify-between text-slate-200">
+          <span class="flex items-center gap-2"><i data-lucide="dices" class="w-4 h-4 text-amber-400"></i> ダイスロール</span>
         </h2>
 
-        <!-- ダイス実行キャラクター選択 -->
-        <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 space-y-1">
-          <label class="text-[10px] text-amber-300 font-bold flex items-center gap-1">
-            <i data-lucide="user-check" class="w-3 h-3"></i> 実行キャラクター選択
-          </label>
-          <select id="dice-actor-select" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none font-bold">
-            <option value="">(選択なし / 共通)</option>
-          </select>
+        <!-- 現在の実行キャラクター表示 & 変更ボタン -->
+        <div class="bg-slate-950 p-2.5 rounded-lg border border-amber-500/30 flex justify-between items-center">
+          <div>
+            <span class="text-[10px] text-amber-400 block font-bold">実行キャラクター</span>
+            <span id="current-actor-display" class="text-xs font-bold text-slate-100">【共通 / 選択なし】</span>
+          </div>
+          <button onclick="openActorSelectModal()" class="bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/40 text-xs px-2.5 py-1 rounded-lg font-bold transition">
+            変更
+          </button>
         </div>
 
         <!-- ボタン式ダイス (2d6 & 修正値ボタン) -->
         <div class="space-y-2">
-          <button onclick="roll2d6(0)" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-sm transition flex items-center justify-center gap-2 shadow-md shadow-amber-950">
+          <button onclick="triggerRoll(() => roll2d6(0))" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-sm transition flex items-center justify-center gap-2 shadow-md shadow-amber-950">
             <i data-lucide="dice-5" class="w-4 h-4"></i> 2d6 (修正なし)
           </button>
           
@@ -230,7 +318,7 @@
         <!-- 自由入力ダイス -->
         <div class="pt-2.5 border-t border-slate-800">
           <label class="text-[10px] text-slate-400 block mb-1">自由入力 (例: 2d6+5, 1d100, 3d6)</label>
-          <form onsubmit="rollCustomDice(event)" class="flex gap-1.5">
+          <form onsubmit="event.preventDefault(); triggerRoll(() => rollCustomDice());" class="flex gap-1.5">
             <input type="text" id="custom-dice-input" placeholder="2d6+3" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs font-mono uppercase text-slate-100 focus:outline-none">
             <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded-lg text-xs font-semibold transition border border-slate-700">振る</button>
           </form>
@@ -257,40 +345,49 @@
               <input type="number" id="key-mod" value="0" class="w-full bg-slate-950 border border-slate-800 rounded py-0.5 px-1.5 text-xs font-mono text-center">
             </div>
           </div>
-          <button onclick="rollKeyTable()" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold py-1 rounded text-xs transition">
+          <button onclick="triggerRoll(() => rollKeyTable())" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold py-1.5 rounded text-xs transition">
             威力ダイス計算
           </button>
         </div>
 
       </div>
 
-      <!-- ログ表示エリア (メイン / 付与ステータス 切り替えタブ) -->
-      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md space-y-2">
-        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-          <!-- ログ切り替えタブ -->
-          <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
-            <button onclick="switchLogTab('main')" id="log-tab-main" class="px-2 py-0.5 rounded text-[11px] font-bold text-amber-300 bg-slate-800">メインログ</button>
-            <button onclick="switchLogTab('status')" id="log-tab-status" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-slate-200">ステータス履歴</button>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <button onclick="copyCurrentLogs()" class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-0.5 transition" title="ログをコピー">
-              <i data-lucide="copy" class="w-3 h-3"></i> コピー
-            </button>
-            <button onclick="clearCurrentLogs()" class="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-0.5 transition">
-              <i data-lucide="trash-2" class="w-3 h-3"></i> 削除
-            </button>
-          </div>
-        </div>
-
-        <div id="log-container" class="space-y-1.5 max-h-[320px] overflow-y-auto text-xs pr-1 font-mono">
-          <!-- JSで動的生成 -->
-        </div>
-      </div>
-
     </section>
 
   </main>
+
+  <!-- 実行キャラクター選択 モーダル -->
+  <div id="actor-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-4 shadow-2xl space-y-3">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-sm text-amber-300 flex items-center gap-1.5">
+          <i data-lucide="user-check" class="w-4 h-4"></i> 実行キャラクターを選択
+        </h3>
+        <button onclick="closeActorSelectModal()" class="text-slate-400 hover:text-slate-200">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- タブ切替 (PC / 敵 / NPC) -->
+      <div class="grid grid-cols-4 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+        <button onclick="setModalTab('PC')" id="modal-tab-PC" class="py-1 text-xs font-bold rounded-lg transition">PC</button>
+        <button onclick="setModalTab('魔物')" id="modal-tab-魔物" class="py-1 text-xs font-bold rounded-lg transition">敵/魔物</button>
+        <button onclick="setModalTab('NPC')" id="modal-tab-NPC" class="py-1 text-xs font-bold rounded-lg transition">NPC</button>
+        <button onclick="setModalTab('ALL')" id="modal-tab-ALL" class="py-1 text-xs font-bold rounded-lg transition">全員</button>
+      </div>
+
+      <!-- キャラクターボタン一覧 -->
+      <div id="modal-actor-list" class="grid grid-cols-1 gap-2 max-h-[260px] overflow-y-auto py-1">
+        <!-- JSで動的出力 -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-800">
+        <button onclick="selectActorForRoll(null)" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 rounded-lg font-bold border border-slate-700 transition">
+          (選択なし / 共通として実行)
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- JavaScript -->
   <script>
@@ -344,14 +441,18 @@
     let state = {
       round: 1,
       selectedCharId: null,
+      diceActorId: null,
+      charTab: 'PC',        // PC, 魔物, NPC
+      modalTab: 'PC',       // PC, 魔物, NPC, ALL
       characters: [],
-      logs: [],           // メインログ (ダイス・HP/MP等)
-      statusLogs: [],     // ステータス関連専用ログ
+      logs: [],           // メインログ
+      statusLogs: [],     // ステータス履歴専用ログ
       activeLogTab: 'main',
       activeRenwazaLv: null,
-      memo: "",
       modPage: 1
     };
+
+    let pendingRollAction = null;
 
     // 初期化
     window.addEventListener('DOMContentLoaded', () => {
@@ -361,18 +462,19 @@
     });
 
     function saveState() {
-      localStorage.setItem('sw25_helper_state_v3', JSON.stringify(state));
+      localStorage.setItem('sw25_helper_state_v4', JSON.stringify(state));
     }
 
     function loadState() {
-      const saved = localStorage.getItem('sw25_helper_state_v3');
+      const saved = localStorage.getItem('sw25_helper_state_v4');
       if (saved) {
         try { 
           state = JSON.parse(saved); 
           if (!state.modPage) state.modPage = 1;
           if (!state.statusLogs) state.statusLogs = [];
           if (!state.activeLogTab) state.activeLogTab = 'main';
-          document.getElementById('session-memo').value = state.memo || "";
+          if (!state.charTab) state.charTab = 'PC';
+          if (!state.modalTab) state.modalTab = 'PC';
         } catch (e) {}
       }
     }
@@ -380,16 +482,12 @@
     function render() {
       document.getElementById('round-display').textContent = `Round ${state.round}`;
       document.getElementById('char-count').textContent = state.characters.length;
+      renderCharTabs();
       renderCharacters();
-      renderActorSelect();
+      renderActorDisplay();
       renderRenwazaGrid();
       renderLogs();
       lucide.createIcons();
-      saveState();
-    }
-
-    function saveMemo() {
-      state.memo = document.getElementById('session-memo').value;
       saveState();
     }
 
@@ -401,6 +499,7 @@
       const maxHp = parseInt(document.getElementById('char-hp').value);
       const maxMp = parseInt(document.getElementById('char-mp').value);
       const defense = parseInt(document.getElementById('char-def').value) || 0;
+      const hasManaSave = document.getElementById('char-mana-save').checked;
 
       const char = {
         id: Date.now() + Math.random(),
@@ -411,48 +510,46 @@
         maxMp,
         mp: maxMp,
         defense,
+        hasManaSave,
         statuses: []
       };
 
       state.characters.push(char);
       if (!state.selectedCharId) state.selectedCharId = char.id;
+      if (!state.diceActorId) state.diceActorId = char.id;
       
-      addLog(`[登録] ${type} 「${name}」 (HP:${maxHp} MP:${maxMp} 防護:${defense})`);
+      addLog(`[登録] ${type} 「${name}」 (HP:${maxHp} MP:${maxMp} 防護:${defense}${hasManaSave ? ' マナセーブ' : ''})`);
       
       document.getElementById('char-name').value = '';
       document.getElementById('char-hp').value = '';
       document.getElementById('char-mp').value = '';
       document.getElementById('char-def').value = '0';
+      document.getElementById('char-mana-save').checked = false;
 
       render();
     }
 
     function selectCharacter(id) {
       state.selectedCharId = id;
-      // ダイス実行キャラも連動させる
-      const actorSelect = document.getElementById('dice-actor-select');
-      if (actorSelect) actorSelect.value = id;
       render();
     }
 
-    // ※要求に基づき削除ログは記録しない
     function removeCharacter(id) {
       const char = state.characters.find(c => c.id === id);
       if (char && confirm(`「${char.name}」を削除しますか？`)) {
         state.characters = state.characters.filter(c => c.id !== id);
-        if (state.selectedCharId === id) {
-          state.selectedCharId = state.characters[0]?.id || null;
-        }
+        if (state.selectedCharId === id) state.selectedCharId = state.characters[0]?.id || null;
+        if (state.diceActorId === id) state.diceActorId = state.characters[0]?.id || null;
         render();
       }
     }
 
-    // 自動防護点減算ダメージ適用
+    // ダメージ計算 ➔ ステータス履歴にのみ出力
     function applyDamage(id) {
       const char = state.characters.find(c => c.id === id);
       if (!char) return;
 
-      const rawInput = prompt(`「${char.name}」が受ける被ダメージ量(防護点引き去り前)を入力:`, "10");
+      const rawInput = prompt(`「${char.name}」が受ける被ダメージ量(防護点引き去り前):`, "10");
       if (rawInput === null) return;
 
       const rawDamage = parseInt(rawInput);
@@ -462,10 +559,11 @@
       const actualDamage = Math.max(0, rawDamage - def);
       char.hp = Math.max(0, char.hp - actualDamage);
 
-      addLog(`[ダメージ] 「${char.name}」算定:${rawDamage} - 防護:${def} ➔ ${actualDamage}減 (HP: ${char.hp}/${char.maxHp})`);
+      addStatusLog(`[ダメージ] 「${char.name}」算定:${rawDamage} - 防護:${def} ➔ ${actualDamage}減 (HP: ${char.hp}/${char.maxHp})`);
       render();
     }
 
+    // 手動HP/MP調整 ➔ ステータス履歴にのみ出力
     function updateStat(id, stat, delta) {
       const char = state.characters.find(c => c.id === id);
       if (!char) return;
@@ -475,14 +573,14 @@
       } else if (stat === 'mp') {
         char.mp = Math.min(char.maxMp, Math.max(0, char.mp + delta));
       }
-      addLog(`[手動調整] 「${char.name}」の${stat.toUpperCase()}が ${delta > 0 ? '+'+delta : delta} (現在: ${char[stat]})`);
+      addStatusLog(`[手動調整] 「${char.name}」の${stat.toUpperCase()}が ${delta > 0 ? '+'+delta : delta} (現在: ${char[stat]})`);
       render();
     }
 
     function changeStatCustom(id, stat) {
       const char = state.characters.find(c => c.id === id);
       if (!char) return;
-      const valStr = prompt(`「${char.name}」の${stat.toUpperCase()}直接変更量 (+数で回復, -数で減少):`, "-5");
+      const valStr = prompt(`「${char.name}」の${stat.toUpperCase()}直接変更量 (+で回復, -で減少):`, "-5");
       if (valStr !== null) {
         const val = parseInt(valStr);
         if (!isNaN(val)) {
@@ -491,16 +589,38 @@
       }
     }
 
+    // 参加者一覧 タブ切り替え
+    function setCharTab(tab) {
+      state.charTab = tab;
+      render();
+    }
+
+    function renderCharTabs() {
+      const tabs = ['PC', '魔物', 'NPC'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`char-tab-${t}`);
+        if (btn) {
+          if (state.charTab === t) {
+            btn.className = "py-1 px-2 rounded-lg text-xs font-bold transition bg-indigo-600 text-white shadow-sm";
+          } else {
+            btn.className = "py-1 px-2 rounded-lg text-xs font-bold transition text-slate-400 hover:text-slate-200";
+          }
+        }
+      });
+    }
+
     function renderCharacters() {
       const container = document.getElementById('character-list');
       container.innerHTML = '';
 
-      if (state.characters.length === 0) {
-        container.innerHTML = `<div class="text-center py-8 text-slate-600 text-xs bg-slate-900/50 rounded-xl border border-slate-800">キャラクターが追加されていません</div>`;
+      const filtered = state.characters.filter(c => c.type === state.charTab);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-600 text-xs bg-slate-900/50 rounded-xl border border-slate-800">${state.charTab} のキャラクターはいません</div>`;
         return;
       }
 
-      state.characters.forEach(char => {
+      filtered.forEach(char => {
         const isSelected = char.id === state.selectedCharId;
         const hpPercent = Math.max(0, Math.min(100, (char.hp / char.maxHp) * 100));
         const mpPercent = Math.max(0, Math.min(100, (char.mp / char.maxMp) * 100));
@@ -519,13 +639,14 @@
 
         card.innerHTML = `
           <div class="flex justify-between items-start mb-2">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 flex-wrap">
               <span class="text-[10px] px-1.5 py-0.5 rounded font-bold border ${typeBadgeClass}">${char.type}</span>
-              <h3 class="font-bold text-sm text-slate-100 flex items-center gap-1.5">
+              <h3 class="font-bold text-sm text-slate-100 flex items-center gap-1">
                 ${escapeHtml(char.name)}
                 ${isSelected ? '<span class="w-2 h-2 rounded-full bg-indigo-400 inline-block" title="選択中"></span>' : ''}
               </h3>
               <span class="text-[10px] text-amber-300 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 font-bold">🛡️防護:${char.defense || 0}</span>
+              ${char.hasManaSave ? '<span class="text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-1 rounded font-bold">マナセーブ</span>' : ''}
             </div>
             <div class="flex items-center gap-1">
               <button onclick="event.stopPropagation(); applyDamage(${char.id})" class="bg-red-950 hover:bg-red-900 text-red-300 border border-red-800/80 text-[10px] px-2 py-0.5 rounded font-bold transition">
@@ -539,10 +660,9 @@
 
           <!-- HP / MP ゲージ -->
           <div class="space-y-1 text-xs">
-            <!-- HP -->
             <div class="flex items-center gap-1.5">
               <span class="w-5 font-bold text-red-400 text-[11px]">HP</span>
-              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'hp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer group" title="クリックで直接数値入力">
+              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'hp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer" title="クリックで数値入力">
                 <div class="bg-red-500 h-full transition-all duration-300" style="width: ${hpPercent}%"></div>
                 <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">${char.hp} / ${char.maxHp}</span>
               </div>
@@ -553,10 +673,9 @@
               </div>
             </div>
 
-            <!-- MP -->
             <div class="flex items-center gap-1.5">
               <span class="w-5 font-bold text-blue-400 text-[11px]">MP</span>
-              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'mp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer group" title="クリックで直接数値入力">
+              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'mp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer" title="クリックで数値入力">
                 <div class="bg-blue-500 h-full transition-all duration-300" style="width: ${mpPercent}%"></div>
                 <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">${char.mp} / ${char.maxMp}</span>
               </div>
@@ -586,33 +705,94 @@
       });
     }
 
-    // ダイス用ドロップダウン選択肢生成
-    function renderActorSelect() {
-      const select = document.getElementById('dice-actor-select');
-      if (!select) return;
+    // --- 実行キャラクター選択・モーダル ---
+    function renderActorDisplay() {
+      const display = document.getElementById('current-actor-display');
+      if (!display) return;
 
-      const currentVal = select.value;
-      select.innerHTML = '<option value="">(選択なし / 共通)</option>';
+      const actor = state.characters.find(c => c.id === state.diceActorId);
+      if (actor) {
+        display.textContent = `【${actor.name}】 (${actor.type})`;
+      } else {
+        display.textContent = `【共通 / 選択なし】`;
+      }
+    }
 
-      state.characters.forEach(char => {
-        const opt = document.createElement('option');
-        opt.value = char.id;
-        opt.textContent = `${char.name} (${char.type})`;
-        if (String(char.id) === String(state.selectedCharId)) {
-          opt.selected = true;
+    function triggerRoll(rollFunction) {
+      pendingRollAction = rollFunction;
+      openActorSelectModal();
+    }
+
+    function openActorSelectModal() {
+      document.getElementById('actor-modal').classList.remove('hidden');
+      renderModalActors();
+    }
+
+    function closeActorSelectModal() {
+      document.getElementById('actor-modal').classList.add('hidden');
+      pendingRollAction = null;
+    }
+
+    function setModalTab(tab) {
+      state.modalTab = tab;
+      renderModalActors();
+    }
+
+    function renderModalActors() {
+      const tabs = ['PC', '魔物', 'NPC', 'ALL'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`modal-tab-${t}`);
+        if (btn) {
+          if (state.modalTab === t) {
+            btn.className = "py-1 text-xs font-bold rounded-lg transition bg-amber-600 text-white shadow-sm";
+          } else {
+            btn.className = "py-1 text-xs font-bold rounded-lg transition text-slate-400 hover:text-slate-200";
+          }
         }
-        select.appendChild(opt);
       });
 
-      if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
-        select.value = currentVal;
+      const container = document.getElementById('modal-actor-list');
+      container.innerHTML = '';
+
+      const list = state.modalTab === 'ALL' 
+        ? state.characters 
+        : state.characters.filter(c => c.type === state.modalTab);
+
+      if (list.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-slate-500 text-xs">該当するキャラクターがいません</div>`;
+        return;
+      }
+
+      list.forEach(char => {
+        const btn = document.createElement('button');
+        btn.className = "w-full bg-slate-950 hover:bg-amber-950/40 border border-slate-800 hover:border-amber-500/50 p-2.5 rounded-xl text-left flex justify-between items-center transition group";
+        btn.onclick = () => selectActorForRoll(char.id);
+        btn.innerHTML = `
+          <div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded font-bold border ${char.type === 'PC' ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700' : 'bg-red-900/50 text-red-300 border-red-700'}">${char.type}</span>
+            <span class="font-bold text-sm text-slate-100 ml-2 group-hover:text-amber-300">${escapeHtml(char.name)}</span>
+          </div>
+          <span class="text-xs text-slate-400 font-mono">HP:${char.hp}/${char.maxHp}</span>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    function selectActorForRoll(charId) {
+      state.diceActorId = charId;
+      document.getElementById('actor-modal').classList.add('hidden');
+      renderActorDisplay();
+
+      if (pendingRollAction) {
+        const action = pendingRollAction;
+        pendingRollAction = null;
+        action();
       }
     }
 
     function getSelectedActorName() {
-      const select = document.getElementById('dice-actor-select');
-      if (!select || !select.value) return "";
-      const char = state.characters.find(c => String(c.id) === String(select.value));
+      if (!state.diceActorId) return "";
+      const char = state.characters.find(c => c.id === state.diceActorId);
       return char ? `【${char.name}】` : "";
     }
 
@@ -665,6 +845,7 @@
       });
     }
 
+    // 練技発動 (マナセーブ適用)
     function castRenwaza(name, rounds) {
       const selectedChar = state.characters.find(c => c.id === state.selectedCharId);
       const autoMp = document.getElementById('auto-mp-cost').checked;
@@ -674,18 +855,45 @@
         return;
       }
 
-      if (autoMp && selectedChar.mp < 3) {
-        if (!confirm(`「${selectedChar.name}」のMPが不足しています(現在MP: ${selectedChar.mp})。そのまま使用しますか？`)) {
+      // マナセーブ特技があれば MP3消費 ➔ MP2消費 に変更
+      const mpCost = selectedChar.hasManaSave ? 2 : 3;
+
+      if (autoMp && selectedChar.mp < mpCost) {
+        if (!confirm(`「${selectedChar.name}」のMPが不足しています(必要MP:${mpCost}, 現在MP:${selectedChar.mp})。そのまま使用しますか？`)) {
           return;
         }
       }
 
-      if (autoMp && selectedChar.mp >= 3) {
-        selectedChar.mp -= 3;
+      if (autoMp && selectedChar.mp >= mpCost) {
+        selectedChar.mp -= mpCost;
       }
 
       addStatusToChar(selectedChar, `練技:${name}`, rounds);
-      addStatusLog(`[練技発動] 「${selectedChar.name}」【${name}】(${rounds}R)${autoMp ? ' [MP-3]' : ''}`);
+      addStatusLog(`[練技発動] 「${selectedChar.name}」【${name}】(${rounds}R)${autoMp ? ` [MP-${mpCost}${selectedChar.hasManaSave ? '(マナセーブ)' : ''}]` : ''}`);
+      render();
+    }
+
+    // 汎用技能発動 (呪歌・鼓咆・賦術)
+    function castSkill(category, name, rounds, defaultMp = 0) {
+      const selectedChar = state.characters.find(c => c.id === state.selectedCharId);
+      const autoMp = document.getElementById('auto-mp-cost').checked;
+
+      if (!selectedChar) {
+        alert("効果を付与する対象のキャラクターを一覧から選択してください。");
+        return;
+      }
+
+      let costText = "";
+      if (defaultMp > 0 && autoMp) {
+        const mpCost = selectedChar.hasManaSave ? Math.max(1, defaultMp - 1) : defaultMp;
+        if (selectedChar.mp >= mpCost) {
+          selectedChar.mp -= mpCost;
+          costText = ` [MP-${mpCost}]`;
+        }
+      }
+
+      addStatusToChar(selectedChar, `${category}:${name}`, rounds);
+      addStatusLog(`[${category}] 「${selectedChar.name}」【${name}】(${rounds}R)${costText}`);
       render();
     }
 
@@ -753,6 +961,27 @@
       }
     }
 
+    function resetAllData() {
+      if (confirm("【警告】すべてのキャラクター、ログ、設定を初期化しますか？")) {
+        localStorage.removeItem('sw25_helper_state_v4');
+        state = {
+          round: 1,
+          selectedCharId: null,
+          diceActorId: null,
+          charTab: 'PC',
+          modalTab: 'PC',
+          characters: [],
+          logs: [],
+          statusLogs: [],
+          activeLogTab: 'main',
+          activeRenwazaLv: null,
+          modPage: 1
+        };
+        renderModButtons();
+        render();
+      }
+    }
+
     // --- ダイス機能 ---
     function renderModButtons() {
       const page = state.modPage || 1;
@@ -778,7 +1007,7 @@
       for (let mod = startVal; mod <= endVal; mod++) {
         const btn = document.createElement('button');
         btn.className = 'bg-amber-700/80 hover:bg-amber-600 active:bg-amber-800 text-amber-100 font-bold py-2 px-2 rounded-lg text-xs transition border border-amber-500/40 shadow-sm flex items-center justify-center gap-1 active:scale-95';
-        btn.onclick = () => roll2d6(mod);
+        btn.onclick = () => triggerRoll(() => roll2d6(mod));
         btn.innerHTML = `<span class="text-slate-300 font-normal">2d6+</span><span class="text-amber-200 text-sm font-extrabold">${mod}</span>`;
         container.appendChild(btn);
       }
@@ -814,8 +1043,7 @@
       addLog(`[ダイス] ${actor}2d6${modText} ➔ [${d1},${d2}]${modText} = <strong class="text-amber-300 text-sm">${total}</strong>${extraText}`);
     }
 
-    function rollCustomDice(e) {
-      e.preventDefault();
+    function rollCustomDice() {
       const actor = getSelectedActorName();
       const input = document.getElementById('custom-dice-input').value.trim();
       const match = input.match(/^(\d+)d(\d+)([\+\-]\d+)?$/i);
@@ -1019,7 +1247,8 @@
             if (!state.modPage) state.modPage = 1;
             if (!state.statusLogs) state.statusLogs = [];
             if (!state.activeLogTab) state.activeLogTab = 'main';
-            if (state.memo) document.getElementById('session-memo').value = state.memo;
+            if (!state.charTab) state.charTab = 'PC';
+            if (!state.modalTab) state.modalTab = 'PC';
             renderModButtons();
             render();
             alert("セッションデータを復元しました。");

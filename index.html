@@ -2,12 +2,17 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 画面拡大（ズーム）を防止する設定 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SW2.5 セッション補助ツール</title>
   <!-- Tailwind CSS & Lucide Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
+    /* ダブルタップズームやピンチイン/アウトの制限 */
+    html, body, button, input, select, textarea {
+      touch-action: manipulation;
+    }
     /* スクロールバーのカスタマイズ */
     ::-webkit-scrollbar {
       width: 6px;
@@ -25,7 +30,7 @@
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-12">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-12 select-none">
 
   <!-- ヘッダー -->
   <header class="bg-slate-900 border-b border-slate-800 p-3 sm:p-4 sticky top-0 z-50 shadow-lg">
@@ -62,7 +67,7 @@
 
   <main class="max-w-7xl mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 mt-1">
 
-    <!-- 左カラム：キャラクター管理 & イニシアティブ (5/12) -->
+    <!-- 左カラム：キャラクター管理 (5/12) -->
     <section class="lg:col-span-5 space-y-4">
       
       <!-- キャラクター追加フォーム -->
@@ -89,8 +94,8 @@
               <input type="number" id="char-mp" placeholder="MP" required min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
             </div>
             <div>
-              <label class="text-[10px] text-slate-400 block mb-0.5">先制/防護</label>
-              <input type="text" id="char-note" placeholder="先制15/防5" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+              <label class="text-[10px] text-slate-400 block mb-0.5">防護点</label>
+              <input type="number" id="char-def" placeholder="0" min="0" value="0" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
             </div>
           </div>
           <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-1.5 rounded-lg text-xs transition shadow-md shadow-indigo-950">
@@ -105,7 +110,7 @@
           <span class="text-xs font-bold text-slate-400 flex items-center gap-1">
             <i data-lucide="users" class="w-3.5 h-3.5"></i> 参加者一覧 (<span id="char-count">0</span>)
           </span>
-          <span class="text-[10px] text-slate-500">※カード選択で練技/ステータスの対象指定</span>
+          <span class="text-[10px] text-slate-500">※「被ダメ」ボタンで防護点引去りダメージ適用</span>
         </div>
         <div id="character-list" class="space-y-2.5">
           <!-- JSで動的生成 -->
@@ -117,7 +122,7 @@
     <!-- 中央カラム：練技・ステータス付与 & メモ (4/12) -->
     <section class="lg:col-span-4 space-y-4">
       
-      <!-- 練技管理 -->
+      <!-- 練技管理 (段階的ボタン展開) -->
       <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
         <div class="flex justify-between items-center mb-2.5">
           <h2 class="text-md font-bold flex items-center gap-2 text-slate-200">
@@ -129,35 +134,22 @@
           </label>
         </div>
 
-        <p class="text-[11px] text-slate-400 mb-2.5 bg-slate-950/60 p-1.5 rounded border border-slate-800">
-          💡 対象キャラを選択後、下のボタンを押すとステータスが自動追加されます。
-        </p>
+        <!-- 練技レベル選択ボタン -->
+        <div class="space-y-2">
+          <div class="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
+            <button onclick="toggleRenwazaLv('1LV')" id="renwaza-tab-1LV" class="py-1 px-2 rounded text-xs font-bold text-slate-400 hover:text-white transition">1LV 練技</button>
+            <button onclick="toggleRenwazaLv('5LV')" id="renwaza-tab-5LV" class="py-1 px-2 rounded text-xs font-bold text-slate-400 hover:text-white transition">5LV 練技</button>
+            <button onclick="toggleRenwazaLv('10LV')" id="renwaza-tab-10LV" class="py-1 px-2 rounded text-xs font-bold text-slate-400 hover:text-white transition">10LV 練技</button>
+          </div>
 
-        <!-- 練技レベル別表示 (1LV -> 5LV -> 10LV 順) -->
-        <div class="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-          <!-- 1LV -->
-          <div class="border border-slate-800 rounded-lg p-2 bg-slate-950/40">
-            <div class="text-[11px] font-bold text-emerald-400 mb-1.5 pb-1 border-b border-slate-800 flex justify-between items-center">
-              <span>1LV 練技</span>
-              <span class="text-[9px] text-slate-500">名前(ラウンド数)</span>
+          <!-- 各レベルの練技表示領域 -->
+          <div id="renwaza-container" class="min-h-[160px] p-2 bg-slate-950/40 border border-slate-800 rounded-lg">
+            <div id="renwaza-placeholder" class="text-center py-10 text-slate-500 text-xs">
+              上の「1LV」「5LV」「10LV」ボタンを押して練技を表示
             </div>
-            <div class="grid grid-cols-2 gap-1.5" id="renwaza-1lv"></div>
-          </div>
-          <!-- 5LV -->
-          <div class="border border-slate-800 rounded-lg p-2 bg-slate-950/40">
-            <div class="text-[11px] font-bold text-emerald-400 mb-1.5 pb-1 border-b border-slate-800 flex justify-between items-center">
-              <span>5LV 練技</span>
-              <span class="text-[9px] text-slate-500">名前(ラウンド数)</span>
+            <div id="renwaza-grid" class="grid grid-cols-2 gap-1.5 hidden">
+              <!-- JSで動的出力 -->
             </div>
-            <div class="grid grid-cols-2 gap-1.5" id="renwaza-5lv"></div>
-          </div>
-          <!-- 10LV -->
-          <div class="border border-slate-800 rounded-lg p-2 bg-slate-950/40">
-            <div class="text-[11px] font-bold text-emerald-400 mb-1.5 pb-1 border-b border-slate-800 flex justify-between items-center">
-              <span>10LV 練技</span>
-              <span class="text-[9px] text-slate-500">名前(ラウンド数)</span>
-            </div>
-            <div class="grid grid-cols-2 gap-1.5" id="renwaza-10lv"></div>
           </div>
         </div>
       </div>
@@ -200,13 +192,23 @@
           <i data-lucide="dices" class="w-4 h-4 text-amber-400"></i> ダイスロール
         </h2>
 
-        <!-- ボタン式ダイス (2d6 & 修正値ボタン ページ分割) -->
+        <!-- ダイス実行キャラクター選択 -->
+        <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 space-y-1">
+          <label class="text-[10px] text-amber-300 font-bold flex items-center gap-1">
+            <i data-lucide="user-check" class="w-3 h-3"></i> 実行キャラクター選択
+          </label>
+          <select id="dice-actor-select" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none font-bold">
+            <option value="">(選択なし / 共通)</option>
+          </select>
+        </div>
+
+        <!-- ボタン式ダイス (2d6 & 修正値ボタン) -->
         <div class="space-y-2">
           <button onclick="roll2d6(0)" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-sm transition flex items-center justify-center gap-2 shadow-md shadow-amber-950">
             <i data-lucide="dice-5" class="w-4 h-4"></i> 2d6 (修正なし)
           </button>
           
-          <!-- 修正値付き 2d6 (ページ分割コントロール) -->
+          <!-- 修正値付き 2d6 -->
           <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-xs">
               <span class="font-bold text-slate-300 flex items-center gap-1">
@@ -215,15 +217,12 @@
               <div class="flex items-center gap-1">
                 <button onclick="changeModPage(-1)" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 px-2 py-0.5 rounded text-xs border border-slate-700 font-bold">‹</button>
                 <select id="mod-page-select" onchange="setModPage(parseInt(this.value))" class="bg-slate-900 border border-slate-700 text-amber-300 text-xs rounded py-0.5 px-1 font-mono font-bold focus:outline-none">
-                  <!-- JSで動的生成 -->
                 </select>
                 <button onclick="changeModPage(1)" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 px-2 py-0.5 rounded text-xs border border-slate-700 font-bold">›</button>
               </div>
             </div>
 
-            <!-- ボタンレイアウト (2列グリッド) -->
             <div id="mod-buttons-container" class="grid grid-cols-2 gap-1.5">
-              <!-- JSで動的生成 -->
             </div>
           </div>
         </div>
@@ -265,18 +264,21 @@
 
       </div>
 
-      <!-- ログ表示 -->
+      <!-- ログ表示エリア (メイン / 付与ステータス 切り替えタブ) -->
       <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md space-y-2">
         <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-          <h2 class="text-sm font-bold flex items-center gap-1.5 text-slate-200">
-            <i data-lucide="scroll" class="w-4 h-4 text-slate-400"></i> ログ
-          </h2>
+          <!-- ログ切り替えタブ -->
+          <div class="flex gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+            <button onclick="switchLogTab('main')" id="log-tab-main" class="px-2 py-0.5 rounded text-[11px] font-bold text-amber-300 bg-slate-800">メインログ</button>
+            <button onclick="switchLogTab('status')" id="log-tab-status" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-slate-200">ステータス履歴</button>
+          </div>
+
           <div class="flex items-center gap-2">
-            <button onclick="copyLogs()" class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-0.5 transition" title="ログをコピー">
+            <button onclick="copyCurrentLogs()" class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-0.5 transition" title="ログをコピー">
               <i data-lucide="copy" class="w-3 h-3"></i> コピー
             </button>
-            <button onclick="clearAllLogs()" class="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-0.5 transition">
-              <i data-lucide="trash-2" class="w-3 h-3"></i> 全削除
+            <button onclick="clearCurrentLogs()" class="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-0.5 transition">
+              <i data-lucide="trash-2" class="w-3 h-3"></i> 削除
             </button>
           </div>
         </div>
@@ -292,7 +294,6 @@
 
   <!-- JavaScript -->
   <script>
-    // --- 練技データ定義 (1LV, 5LV, 10LV 順) ---
     const renwazaData = {
       "1LV": [
         { name: "アンチボディ", rounds: 3 },
@@ -326,7 +327,6 @@
       ]
     };
 
-    // SW2.5 簡易威力表テーブル (2d6出目 3~12 の基本ダメージ概算)
     const keyTables = {
       0:   [0, 0, 1, 2, 2, 3, 3, 4, 4, 5],
       10:  [0, 1, 2, 3, 4, 4, 5, 6, 7, 8],
@@ -345,7 +345,10 @@
       round: 1,
       selectedCharId: null,
       characters: [],
-      logs: [],
+      logs: [],           // メインログ (ダイス・HP/MP等)
+      statusLogs: [],     // ステータス関連専用ログ
+      activeLogTab: 'main',
+      activeRenwazaLv: null,
       memo: "",
       modPage: 1
     };
@@ -353,22 +356,22 @@
     // 初期化
     window.addEventListener('DOMContentLoaded', () => {
       loadState();
-      renderRenwazaUI();
       renderModButtons();
       render();
     });
 
-    // --- State & LocalStorage ---
     function saveState() {
-      localStorage.setItem('sw25_helper_state_v2', JSON.stringify(state));
+      localStorage.setItem('sw25_helper_state_v3', JSON.stringify(state));
     }
 
     function loadState() {
-      const saved = localStorage.getItem('sw25_helper_state_v2');
+      const saved = localStorage.getItem('sw25_helper_state_v3');
       if (saved) {
         try { 
           state = JSON.parse(saved); 
           if (!state.modPage) state.modPage = 1;
+          if (!state.statusLogs) state.statusLogs = [];
+          if (!state.activeLogTab) state.activeLogTab = 'main';
           document.getElementById('session-memo').value = state.memo || "";
         } catch (e) {}
       }
@@ -378,6 +381,8 @@
       document.getElementById('round-display').textContent = `Round ${state.round}`;
       document.getElementById('char-count').textContent = state.characters.length;
       renderCharacters();
+      renderActorSelect();
+      renderRenwazaGrid();
       renderLogs();
       lucide.createIcons();
       saveState();
@@ -395,7 +400,7 @@
       const type = document.getElementById('char-type').value;
       const maxHp = parseInt(document.getElementById('char-hp').value);
       const maxMp = parseInt(document.getElementById('char-mp').value);
-      const note = document.getElementById('char-note').value.trim();
+      const defense = parseInt(document.getElementById('char-def').value) || 0;
 
       const char = {
         id: Date.now() + Math.random(),
@@ -405,28 +410,32 @@
         hp: maxHp,
         maxMp,
         mp: maxMp,
-        note,
+        defense,
         statuses: []
       };
 
       state.characters.push(char);
       if (!state.selectedCharId) state.selectedCharId = char.id;
       
-      addLog(`[登録] ${type} 「${name}」 (HP:${maxHp} MP:${maxMp})`);
+      addLog(`[登録] ${type} 「${name}」 (HP:${maxHp} MP:${maxMp} 防護:${defense})`);
       
       document.getElementById('char-name').value = '';
       document.getElementById('char-hp').value = '';
       document.getElementById('char-mp').value = '';
-      document.getElementById('char-note').value = '';
+      document.getElementById('char-def').value = '0';
 
       render();
     }
 
     function selectCharacter(id) {
       state.selectedCharId = id;
+      // ダイス実行キャラも連動させる
+      const actorSelect = document.getElementById('dice-actor-select');
+      if (actorSelect) actorSelect.value = id;
       render();
     }
 
+    // ※要求に基づき削除ログは記録しない
     function removeCharacter(id) {
       const char = state.characters.find(c => c.id === id);
       if (char && confirm(`「${char.name}」を削除しますか？`)) {
@@ -434,9 +443,27 @@
         if (state.selectedCharId === id) {
           state.selectedCharId = state.characters[0]?.id || null;
         }
-        addLog(`[削除] 「${char.name}」を一覧から削除しました。`);
         render();
       }
+    }
+
+    // 自動防護点減算ダメージ適用
+    function applyDamage(id) {
+      const char = state.characters.find(c => c.id === id);
+      if (!char) return;
+
+      const rawInput = prompt(`「${char.name}」が受ける被ダメージ量(防護点引き去り前)を入力:`, "10");
+      if (rawInput === null) return;
+
+      const rawDamage = parseInt(rawInput);
+      if (isNaN(rawDamage)) return;
+
+      const def = char.defense || 0;
+      const actualDamage = Math.max(0, rawDamage - def);
+      char.hp = Math.max(0, char.hp - actualDamage);
+
+      addLog(`[ダメージ] 「${char.name}」算定:${rawDamage} - 防護:${def} ➔ ${actualDamage}減 (HP: ${char.hp}/${char.maxHp})`);
+      render();
     }
 
     function updateStat(id, stat, delta) {
@@ -448,18 +475,18 @@
       } else if (stat === 'mp') {
         char.mp = Math.min(char.maxMp, Math.max(0, char.mp + delta));
       }
+      addLog(`[手動調整] 「${char.name}」の${stat.toUpperCase()}が ${delta > 0 ? '+'+delta : delta} (現在: ${char[stat]})`);
       render();
     }
 
     function changeStatCustom(id, stat) {
       const char = state.characters.find(c => c.id === id);
       if (!char) return;
-      const valStr = prompt(`「${char.name}」の${stat.toUpperCase()}変更量 (+数で回復, -数でダメージ):`, "-5");
+      const valStr = prompt(`「${char.name}」の${stat.toUpperCase()}直接変更量 (+数で回復, -数で減少):`, "-5");
       if (valStr !== null) {
         const val = parseInt(valStr);
         if (!isNaN(val)) {
           updateStat(id, stat, val);
-          addLog(`[変動] 「${char.name}」の${stat.toUpperCase()}が ${val > 0 ? '+'+val : val} (現在: ${char[stat]})`);
         }
       }
     }
@@ -498,11 +525,16 @@
                 ${escapeHtml(char.name)}
                 ${isSelected ? '<span class="w-2 h-2 rounded-full bg-indigo-400 inline-block" title="選択中"></span>' : ''}
               </h3>
-              ${char.note ? `<span class="text-[10px] text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">${escapeHtml(char.note)}</span>` : ''}
+              <span class="text-[10px] text-amber-300 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 font-bold">🛡️防護:${char.defense || 0}</span>
             </div>
-            <button onclick="event.stopPropagation(); removeCharacter(${char.id})" class="text-slate-500 hover:text-red-400 p-0.5 transition">
-              <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
+            <div class="flex items-center gap-1">
+              <button onclick="event.stopPropagation(); applyDamage(${char.id})" class="bg-red-950 hover:bg-red-900 text-red-300 border border-red-800/80 text-[10px] px-2 py-0.5 rounded font-bold transition">
+                被ダメ算
+              </button>
+              <button onclick="event.stopPropagation(); removeCharacter(${char.id})" class="text-slate-500 hover:text-red-400 p-0.5 transition">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
           </div>
 
           <!-- HP / MP ゲージ -->
@@ -510,7 +542,7 @@
             <!-- HP -->
             <div class="flex items-center gap-1.5">
               <span class="w-5 font-bold text-red-400 text-[11px]">HP</span>
-              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'hp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer group" title="クリックで直接入力">
+              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'hp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer group" title="クリックで直接数値入力">
                 <div class="bg-red-500 h-full transition-all duration-300" style="width: ${hpPercent}%"></div>
                 <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">${char.hp} / ${char.maxHp}</span>
               </div>
@@ -524,7 +556,7 @@
             <!-- MP -->
             <div class="flex items-center gap-1.5">
               <span class="w-5 font-bold text-blue-400 text-[11px]">MP</span>
-              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'mp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer group" title="クリックで直接入力">
+              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'mp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer group" title="クリックで直接数値入力">
                 <div class="bg-blue-500 h-full transition-all duration-300" style="width: ${mpPercent}%"></div>
                 <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">${char.mp} / ${char.maxMp}</span>
               </div>
@@ -554,23 +586,82 @@
       });
     }
 
-    // --- 練技 UI 描画 & 発動 ---
-    function renderRenwazaUI() {
-      Object.keys(renwazaData).forEach(lv => {
-        const targetId = `renwaza-${lv.toLowerCase()}`;
-        const container = document.getElementById(targetId);
-        container.innerHTML = '';
+    // ダイス用ドロップダウン選択肢生成
+    function renderActorSelect() {
+      const select = document.getElementById('dice-actor-select');
+      if (!select) return;
 
-        renwazaData[lv].forEach(item => {
-          const btn = document.createElement('button');
-          btn.className = 'bg-slate-900 hover:bg-emerald-900/40 hover:border-emerald-500/50 border border-slate-800 text-slate-200 text-xs py-1.5 px-2 rounded-lg text-left flex justify-between items-center transition group';
-          btn.onclick = () => castRenwaza(item.name, item.rounds);
-          btn.innerHTML = `
-            <span class="font-medium group-hover:text-emerald-300 text-[11px]">${item.name}</span>
-            <span class="text-[10px] text-emerald-400/80 font-mono font-bold">(${item.rounds})</span>
-          `;
-          container.appendChild(btn);
-        });
+      const currentVal = select.value;
+      select.innerHTML = '<option value="">(選択なし / 共通)</option>';
+
+      state.characters.forEach(char => {
+        const opt = document.createElement('option');
+        opt.value = char.id;
+        opt.textContent = `${char.name} (${char.type})`;
+        if (String(char.id) === String(state.selectedCharId)) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+
+      if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+        select.value = currentVal;
+      }
+    }
+
+    function getSelectedActorName() {
+      const select = document.getElementById('dice-actor-select');
+      if (!select || !select.value) return "";
+      const char = state.characters.find(c => String(c.id) === String(select.value));
+      return char ? `【${char.name}】` : "";
+    }
+
+    // --- 練技 UI 段階選択表示 ---
+    function toggleRenwazaLv(lv) {
+      if (state.activeRenwazaLv === lv) {
+        state.activeRenwazaLv = null;
+      } else {
+        state.activeRenwazaLv = lv;
+      }
+      renderRenwazaGrid();
+    }
+
+    function renderRenwazaGrid() {
+      const grid = document.getElementById('renwaza-grid');
+      const placeholder = document.getElementById('renwaza-placeholder');
+      const lvs = ['1LV', '5LV', '10LV'];
+
+      lvs.forEach(l => {
+        const btn = document.getElementById(`renwaza-tab-${l}`);
+        if (btn) {
+          if (state.activeRenwazaLv === l) {
+            btn.className = "py-1 px-2 rounded text-xs font-bold text-amber-300 bg-emerald-950 border border-emerald-500/40 shadow-sm";
+          } else {
+            btn.className = "py-1 px-2 rounded text-xs font-bold text-slate-400 hover:text-white transition";
+          }
+        }
+      });
+
+      if (!state.activeRenwazaLv) {
+        grid.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        return;
+      }
+
+      grid.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+      grid.innerHTML = '';
+
+      const list = renwazaData[state.activeRenwazaLv] || [];
+      list.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = 'bg-slate-900 hover:bg-emerald-900/40 hover:border-emerald-500/50 border border-slate-800 text-slate-200 text-xs py-1.5 px-2 rounded-lg text-left flex justify-between items-center transition group';
+        btn.onclick = () => castRenwaza(item.name, item.rounds);
+        btn.innerHTML = `
+          <span class="font-medium group-hover:text-emerald-300 text-[11px]">${item.name}</span>
+          <span class="text-[10px] text-emerald-400/80 font-mono font-bold">(${item.rounds}R)</span>
+        `;
+        grid.appendChild(btn);
       });
     }
 
@@ -579,7 +670,7 @@
       const autoMp = document.getElementById('auto-mp-cost').checked;
 
       if (!selectedChar) {
-        alert("練技を付与する対象のキャラクターを一覧から選択(クリック)してください。");
+        alert("練技を付与する対象のキャラクターを一覧から選択してください。");
         return;
       }
 
@@ -594,7 +685,7 @@
       }
 
       addStatusToChar(selectedChar, `練技:${name}`, rounds);
-      addLog(`[練技] 「${selectedChar.name}」【${name}】発動(${rounds}R)${autoMp ? ' [MP-3]' : ''}`);
+      addStatusLog(`[練技発動] 「${selectedChar.name}」【${name}】(${rounds}R)${autoMp ? ' [MP-3]' : ''}`);
       render();
     }
 
@@ -610,7 +701,7 @@
       const rounds = parseInt(document.getElementById('status-rounds').value);
 
       addStatusToChar(selectedChar, name, rounds);
-      addLog(`[ステータス] 「${selectedChar.name}」に【${name}】(${rounds}R) を付与`);
+      addStatusLog(`[付与] 「${selectedChar.name}」に【${name}】(${rounds}R) を付与`);
       
       document.getElementById('status-name').value = '';
       render();
@@ -629,7 +720,7 @@
       if (char) {
         const status = char.statuses.find(s => s.id === statusId);
         char.statuses = char.statuses.filter(s => s.id !== statusId);
-        if (status) addLog(`[解除] 「${char.name}」の【${status.name}】を手動解除しました。`);
+        if (status) addStatusLog(`[手動解除] 「${char.name}」の【${status.name}】を解除`);
         render();
       }
     }
@@ -650,26 +741,25 @@
       });
 
       addLog(`=== Round ${state.round} 開始 ===`);
-      expiredLogs.forEach(msg => addLog(`[自動解除] ${msg}`));
+      expiredLogs.forEach(msg => addStatusLog(`[自動解除] ${msg}`));
       render();
     }
 
     function resetRound() {
-      if (confirm("ラウンド数を Round 1 にリセットしますか？ (ステータスは維持されます)")) {
+      if (confirm("ラウンド数を Round 1 にリセットしますか？")) {
         state.round = 1;
         addLog(`[リセット] ラウンド数を 1 に戻しました。`);
         render();
       }
     }
 
-    // --- ダイス機能 (修正値ボタンページ分割管理) ---
+    // --- ダイス機能 ---
     function renderModButtons() {
       const page = state.modPage || 1;
       const select = document.getElementById('mod-page-select');
       const container = document.getElementById('mod-buttons-container');
       if (!select || !container) return;
 
-      // セレクトボックス更新 (1〜100 を 10 個ずつ 10 ページに分割)
       select.innerHTML = '';
       for (let i = 1; i <= 10; i++) {
         const start = (i - 1) * 10 + 1;
@@ -681,7 +771,6 @@
         select.appendChild(option);
       }
 
-      // ボタン群生成
       container.innerHTML = '';
       const startVal = (page - 1) * 10 + 1;
       const endVal = page * 10;
@@ -711,21 +800,23 @@
     }
 
     function roll2d6(mod = 0) {
+      const actor = getSelectedActorName();
       const d1 = Math.floor(Math.random() * 6) + 1;
       const d2 = Math.floor(Math.random() * 6) + 1;
       const diceSum = d1 + d2;
       const total = diceSum + mod;
 
       let extraText = "";
-      if (d1 === 1 && d2 === 1) extraText = " <span class='text-red-400 font-bold'>【自動失敗/ファンブル】</span>";
-      if (d1 === 6 && d2 === 6) extraText = " <span class='text-amber-400 font-bold'>【自動成功/クリティカル】</span>";
+      if (d1 === 1 && d2 === 1) extraText = " <span class='text-red-400 font-bold'>【自動失敗】</span>";
+      if (d1 === 6 && d2 === 6) extraText = " <span class='text-amber-400 font-bold'>【自動成功】</span>";
 
       const modText = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : "";
-      addLog(`[ダイス] 2d6${modText} ➔ [${d1},${d2}]${modText} = <strong class="text-amber-300 text-sm">${total}</strong>${extraText}`);
+      addLog(`[ダイス] ${actor}2d6${modText} ➔ [${d1},${d2}]${modText} = <strong class="text-amber-300 text-sm">${total}</strong>${extraText}`);
     }
 
     function rollCustomDice(e) {
       e.preventDefault();
+      const actor = getSelectedActorName();
       const input = document.getElementById('custom-dice-input').value.trim();
       const match = input.match(/^(\d+)d(\d+)([\+\-]\d+)?$/i);
 
@@ -753,11 +844,11 @@
 
       const total = sum + mod;
       const modText = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : "";
-      addLog(`[自由ダイス] ${input} ➔ [${rolls.join(',')}]${modText} = <strong class="text-amber-300 text-sm">${total}</strong>`);
+      addLog(`[自由ダイス] ${actor}${input} ➔ [${rolls.join(',')}]${modText} = <strong class="text-amber-300 text-sm">${total}</strong>`);
     }
 
-    // SW2.5 威力表計算ダイス
     function rollKeyTable() {
+      const actor = getSelectedActorName();
       const powerInput = parseInt(document.getElementById('key-power').value) || 0;
       const critVal = parseInt(document.getElementById('key-crit').value) || 10;
       const modVal = parseInt(document.getElementById('key-mod').value) || 0;
@@ -798,10 +889,10 @@
 
       const finalDamage = totalDamage + modVal;
       const modStr = modVal !== 0 ? (modVal > 0 ? `+${modVal}` : `${modVal}`) : "";
-      addLog(`[威力K${closestPower}@${critVal}${modStr}] ${rollHistory.join(' ')} ${modStr} = <strong class="text-amber-300 text-sm">${finalDamage}</strong>ダメ`);
+      addLog(`[威力K${closestPower}@${critVal}${modStr}] ${actor} ${rollHistory.join(' ')} ${modStr} = <strong class="text-amber-300 text-sm">${finalDamage}</strong>ダメ`);
     }
 
-    // --- ログ機能 ---
+    // --- ログ管理 (メインログ / ステータス履歴分離) ---
     function addLog(text) {
       const logItem = {
         id: Date.now() + Math.random(),
@@ -814,24 +905,61 @@
       saveState();
     }
 
-    function deleteLog(id) {
-      state.logs = state.logs.filter(l => l.id !== id);
+    function addStatusLog(text) {
+      const logItem = {
+        id: Date.now() + Math.random(),
+        time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        text
+      };
+      state.statusLogs.unshift(logItem);
+      if (state.statusLogs.length > 100) state.statusLogs.pop();
       renderLogs();
       saveState();
     }
 
-    function clearAllLogs() {
-      if (confirm("全てのログを削除しますか？")) {
-        state.logs = [];
+    function switchLogTab(tab) {
+      state.activeLogTab = tab;
+      const mainBtn = document.getElementById('log-tab-main');
+      const statusBtn = document.getElementById('log-tab-status');
+
+      if (tab === 'main') {
+        mainBtn.className = "px-2 py-0.5 rounded text-[11px] font-bold text-amber-300 bg-slate-800";
+        statusBtn.className = "px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-slate-200";
+      } else {
+        statusBtn.className = "px-2 py-0.5 rounded text-[11px] font-bold text-emerald-300 bg-slate-800";
+        mainBtn.className = "px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-slate-200";
+      }
+      renderLogs();
+    }
+
+    function deleteLogItem(id) {
+      if (state.activeLogTab === 'main') {
+        state.logs = state.logs.filter(l => l.id !== id);
+      } else {
+        state.statusLogs = state.statusLogs.filter(l => l.id !== id);
+      }
+      renderLogs();
+      saveState();
+    }
+
+    function clearCurrentLogs() {
+      const logName = state.activeLogTab === 'main' ? 'メインログ' : 'ステータス履歴';
+      if (confirm(`${logName}を全て削除しますか？`)) {
+        if (state.activeLogTab === 'main') {
+          state.logs = [];
+        } else {
+          state.statusLogs = [];
+        }
         renderLogs();
         saveState();
       }
     }
 
-    function copyLogs() {
-      const plainText = state.logs.map(l => `[${l.time}] ${l.text.replace(/<[^>]*>?/gm, '')}`).reverse().join('\n');
+    function copyCurrentLogs() {
+      const targetLogs = state.activeLogTab === 'main' ? state.logs : state.statusLogs;
+      const plainText = targetLogs.map(l => `[${l.time}] ${l.text.replace(/<[^>]*>?/gm, '')}`).reverse().join('\n');
       navigator.clipboard.writeText(plainText).then(() => {
-        alert("ログテキストをクリップボードにコピーしました。");
+        alert("ログをクリップボードにコピーしました。");
       });
     }
 
@@ -839,12 +967,14 @@
       const container = document.getElementById('log-container');
       container.innerHTML = '';
 
-      if (state.logs.length === 0) {
-        container.innerHTML = `<div class="text-center py-6 text-slate-600">ログはありません</div>`;
+      const targetLogs = state.activeLogTab === 'main' ? state.logs : state.statusLogs;
+
+      if (targetLogs.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-slate-600 text-xs">ログはありません</div>`;
         return;
       }
 
-      state.logs.forEach(log => {
+      targetLogs.forEach(log => {
         const div = document.createElement('div');
         div.className = 'bg-slate-950/70 p-1.5 px-2 rounded border border-slate-800 flex justify-between items-start gap-1.5 leading-snug';
         div.innerHTML = `
@@ -852,7 +982,7 @@
             <span class="text-slate-500 text-[10px]">[${log.time}]</span>
             <span class="text-slate-200 text-[11px]">${log.text}</span>
           </div>
-          <button onclick="deleteLog(${log.id})" class="text-slate-600 hover:text-red-400 p-0.5 transition shrink-0">
+          <button onclick="deleteLogItem(${log.id})" class="text-slate-600 hover:text-red-400 p-0.5 transition shrink-0">
             <i data-lucide="trash-2" class="w-3 h-3"></i>
           </button>
         `;
@@ -861,7 +991,7 @@
       lucide.createIcons();
     }
 
-    // --- JSONインポート / エクスポート ---
+    // JSONインポート / エクスポート
     function exportData() {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
       const downloadAnchor = document.createElement('a');
@@ -887,10 +1017,12 @@
           if (imported && Array.isArray(imported.characters)) {
             state = imported;
             if (!state.modPage) state.modPage = 1;
+            if (!state.statusLogs) state.statusLogs = [];
+            if (!state.activeLogTab) state.activeLogTab = 'main';
             if (state.memo) document.getElementById('session-memo').value = state.memo;
             renderModButtons();
             render();
-            alert("セッションデータを無事に復元しました。");
+            alert("セッションデータを復元しました。");
           } else {
             alert("ファイル形式が正しくありません。");
           }

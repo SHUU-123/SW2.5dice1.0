@@ -1,1049 +1,850 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ソード・ワールド2.5 セッション管理ツール</title>
-    <style>
-        :root {
-            --bg-color: #0f111a;
-            --panel-bg: #1a1d2e;
-            --card-bg: #22263d;
-            --accent-color: #5b6eae;
-            --accent-hover: #7084c7;
-            --danger-color: #e74c3c;
-            --danger-hover: #c0392b;
-            --success-color: #2ecc71;
-            --buff-color: #27ae60;
-            --debuff-color: #c0392b;
-            --neutral-color: #8e44ad;
-            --text-color: #e1e4ed;
-            --text-muted: #8c93a8;
-            --border-color: #2e3450;
-            --input-bg: #121421;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            min-height: 100vh;
-        }
-
-        /* ヘッダー */
-        header {
-            background: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        header h1 {
-            font-size: 1.3rem;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        header h1 span {
-            font-size: 0.8rem;
-            background: var(--accent-color);
-            padding: 2px 8px;
-            border-radius: 12px;
-        }
-        .header-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .save-status {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-right: 10px;
-        }
-
-        /* レイアウト */
-        .app-container {
-            display: grid;
-            grid-template-columns: 1fr 360px;
-            gap: 15px;
-            flex: 1;
-        }
-
-        @media (max-width: 960px) {
-            .app-container { grid-template-columns: 1fr; }
-        }
-
-        .main-panel { display: flex; flex-direction: column; gap: 15px; }
-        .side-panel { display: flex; flex-direction: column; gap: 15px; }
-
-        /* カード共通 */
-        .card {
-            background: var(--panel-bg);
-            border-radius: 8px;
-            padding: 15px;
-            border: 1px solid var(--border-color);
-        }
-
-        h2 {
-            font-size: 1.05rem;
-            margin-bottom: 12px;
-            border-bottom: 2px solid var(--accent-color);
-            padding-bottom: 6px;
-            color: #fff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        /* フォームコントロール */
-        input, select, button {
-            background: var(--input-bg);
-            border: 1px solid var(--border-color);
-            color: #fff;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            outline: none;
-        }
-        input:focus, select:focus {
-            border-color: var(--accent-color);
-        }
-        button {
-            cursor: pointer;
-            background: var(--accent-color);
-            border: none;
-            font-weight: bold;
-            transition: background 0.2s, opacity 0.2s;
-        }
-        button:hover { background: var(--accent-hover); }
-        button.danger { background: var(--danger-color); }
-        button.danger:hover { background: var(--danger-hover); }
-        button.secondary { background: #3a3f58; }
-        button.secondary:hover { background: #4a506f; }
-        button.small { padding: 3px 8px; font-size: 0.75rem; }
-
-        /* キャラクター追加フォーム */
-        .char-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 8px;
-            margin-bottom: 15px;
-            background: var(--input-bg);
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-        }
-        .char-form input[type="text"] { grid-column: span 2; }
-        .form-actions {
-            grid-column: 1 / -1;
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-            margin-top: 4px;
-        }
-
-        /* キャラクターカードグリッド */
-        .char-grid {
-            display: grid;
-            gap: 12px;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        }
-        .char-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 12px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .char-card.enemy { border-left: 4px solid var(--danger-color); }
-        .char-card.pc { border-left: 4px solid var(--success-color); }
-
-        .char-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .char-title {
-            font-weight: bold;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .badge-type {
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-        .pc .badge-type { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
-        .enemy .badge-type { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
-
-        /* ステータスゲージ・数値 */
-        .gauge-group { display: flex; flex-direction: column; gap: 6px; }
-        .gauge-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            font-size: 0.85rem;
-        }
-        .gauge-bar-container {
-            flex: 1;
-            height: 10px;
-            background: #121421;
-            border-radius: 5px;
-            overflow: hidden;
-            border: 1px solid #2e3450;
-        }
-        .gauge-bar {
-            height: 100%;
-            transition: width 0.3s ease;
-        }
-        .gauge-hp { background: linear-gradient(90deg, #e74c3c, #2ecc71); }
-        .gauge-mp { background: linear-gradient(90deg, #2980b9, #3498db); }
-
-        .stat-controls {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .stat-controls input {
-            width: 50px;
-            text-align: center;
-            padding: 2px 4px;
-        }
-
-        .char-info-row {
-            display: flex;
-            gap: 15px;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            background: rgba(0,0,0,0.15);
-            padding: 6px 10px;
-            border-radius: 4px;
-        }
-        .char-info-row strong { color: var(--text-color); }
-
-        /* バフ・デバフエリア */
-        .buff-section {
-            border-top: 1px dashed var(--border-color);
-            padding-top: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .buff-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-        .buff-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-        .buff-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            background: #2a2e45;
-            border: 1px solid var(--border-color);
-        }
-        .buff-chip.buff { border-color: var(--buff-color); color: #2ecc71; background: rgba(39, 174, 96, 0.15); }
-        .buff-chip.debuff { border-color: var(--debuff-color); color: #ff6b6b; background: rgba(192, 57, 43, 0.15); }
-        .buff-chip.neutral { border-color: var(--neutral-color); color: #d6a2e8; background: rgba(142, 68, 173, 0.15); }
-        .buff-chip .remove-btn {
-            cursor: pointer;
-            color: #aaa;
-            font-weight: bold;
-            margin-left: 2px;
-        }
-        .buff-chip .remove-btn:hover { color: #fff; }
-
-        /* ダイスエリア */
-        .dice-preset-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            margin-bottom: 12px;
-        }
-        .dice-preset-grid button {
-            padding: 6px 0;
-            font-size: 0.8rem;
-            background: #282d46;
-        }
-        .dice-preset-grid button:hover { background: var(--accent-color); }
-
-        .dice-input-group {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 12px;
-        }
-
-        .crit-roll-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
-        /* ログ */
-        .log-container {
-            display: flex;
-            flex-direction: column;
-            height: 380px;
-        }
-        .log-list {
-            flex: 1;
-            overflow-y: auto;
-            background: var(--input-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 8px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.82rem;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .log-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            padding-bottom: 4px;
-            gap: 8px;
-        }
-        .log-time { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
-        .log-content { flex: 1; word-break: break-word; }
-        .log-content strong { color: #f1c40f; }
-        .log-content .crit { color: #e74c3c; font-weight: bold; }
-        .log-content .fail { color: #95a5a6; font-style: italic; }
-
-        /* モーダル */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease;
-        }
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .modal-box {
-            background: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px;
-            width: 340px;
-            max-width: 90%;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .modal-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-top: 4px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SW2.5 セッション補助ツール</title>
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* スクロールバーのカスタマイズ */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-12">
 
-    <header>
-        <h1>ソード・ワールド2.5 セッション管理 <span>v1.3</span></h1>
-        <div class="header-actions">
-            <span class="save-status" id="save-status">自動保存済み</span>
-            <button class="secondary small" onclick="exportData()">データ書き出し (JSON)</button>
-            <button class="secondary small" onclick="document.getElementById('file-import').click()">データ読み込み</button>
-            <input type="file" id="file-import" style="display:none" accept=".json" onchange="importData(event)">
-            <button class="danger small" onclick="resetAllData()">セッション初期化</button>
+  <!-- ヘッダー -->
+  <header class="bg-slate-900 border-b border-slate-800 p-3 sm:p-4 sticky top-0 z-50 shadow-lg">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-amber-500/20 p-2 rounded-lg border border-amber-500/30">
+          <i data-lucide="swords" class="text-amber-400 w-6 h-6"></i>
         </div>
-    </header>
-
-    <div class="app-container">
-        <!-- メインパネル (キャラクター管理) -->
-        <div class="main-panel">
-            <div class="card">
-                <h2>
-                    キャラクター管理・イニシアティブ
-                    <div>
-                        <button class="secondary small" onclick="sortByInit()">先制順ソート</button>
-                        <button class="secondary small" onclick="nextRound()">次ラウンドへ (バフ経過)</button>
-                    </div>
-                </h2>
-
-                <!-- キャラ追加フォーム -->
-                <div class="char-form">
-                    <input type="text" id="c-name" placeholder="名前 (例: ゴブリンA / リルドラケン前衛)">
-                    <select id="c-type">
-                        <option value="enemy">敵 / NPC</option>
-                        <option value="pc">PC / 仲間</option>
-                    </select>
-                    <input type="number" id="c-init" placeholder="先制" title="先制値">
-                    <input type="number" id="c-hp" placeholder="HP" title="最大HP">
-                    <input type="number" id="c-mp" placeholder="MP" title="最大MP">
-                    <input type="number" id="c-def" placeholder="防護" title="防護点">
-                    <div class="form-actions">
-                        <button onclick="addCharacter()">キャラクター追加</button>
-                    </div>
-                </div>
-
-                <!-- キャラカード一覧 -->
-                <div class="char-grid" id="char-list"></div>
-            </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-wide text-amber-100">SW2.5 セッションヘルパー</h1>
+          <p class="text-[10px] text-slate-400">ソード・ワールド2.5 総合戦闘＆進行支援ツール</p>
         </div>
-
-        <!-- サイドパネル (ダイス & ログ) -->
-        <div class="side-panel">
-            <!-- ダイス機能 -->
-            <div class="card">
-                <h2>2d6 固定修正ロール</h2>
-                <div class="dice-preset-grid" id="preset-buttons"></div>
-
-                <h2>SW2.5 判定ロール (振り足し対応)</h2>
-                <div class="crit-roll-grid">
-                    <div>
-                        <label style="font-size:0.75rem; color:var(--text-muted)">達成値修正 (+/-)</label>
-                        <input type="number" id="sw-mod" value="0" style="width:100%">
-                    </div>
-                    <div>
-                        <label style="font-size:0.75rem; color:var(--text-muted)">クリティカル値 (C値)</label>
-                        <input type="number" id="sw-crit" value="10" min="8" max="13" style="width:100%">
-                    </div>
-                </div>
-                <button onclick="rollSW25Dice()" style="width:100%; padding: 8px 0; margin-bottom: 12px;">判定ダイスを振る</button>
-
-                <h2>自由入力ロール</h2>
-                <div class="dice-input-group">
-                    <input type="text" id="custom-dice" placeholder="例: 2d6+5, 1d100, 3d6" style="flex:1">
-                    <button onclick="rollCustomDice()">振る</button>
-                </div>
-            </div>
-
-            <!-- ログ機能 -->
-            <div class="card log-container">
-                <h2>
-                    セッションログ
-                    <button class="danger small" onclick="clearAllLogs()">全削除</button>
-                </h2>
-                <div class="log-list" id="log-list"></div>
-            </div>
-        </div>
+        <span id="round-display" class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs sm:text-sm font-bold px-3 py-1 rounded-full ml-2">Round 1</span>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button onclick="nextRound()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs sm:text-sm flex items-center gap-1.5 transition shadow-md shadow-amber-900/20">
+          <i data-lucide="play-circle" class="w-4 h-4"></i> ラウンド経過
+        </button>
+        <button onclick="resetRound()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-1.5 px-2.5 rounded-lg border border-slate-700 transition" title="ラウンドリセット">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        </button>
+        <div class="h-4 w-px bg-slate-800 mx-1"></div>
+        <button onclick="exportData()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm py-1.5 px-2.5 rounded-lg border border-slate-700 flex items-center gap-1 transition">
+          <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-400"></i> 保存
+        </button>
+        <button onclick="importData()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm py-1.5 px-2.5 rounded-lg border border-slate-700 flex items-center gap-1 transition">
+          <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i> 復元
+        </button>
+        <input type="file" id="import-file" class="hidden" onchange="handleImportFile(event)">
+      </div>
     </div>
+  </header>
 
-    <!-- バフ追加モーダル -->
-    <div class="modal-overlay" id="buff-modal">
-        <div class="modal-box">
-            <h3 style="font-size:1rem; color:#fff;">バフ・デバフの付与</h3>
-            <input type="hidden" id="modal-char-id">
-            
-            <!-- 階層型プリセット選択 -->
-            <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
-                <label style="font-size:0.75rem; color:var(--accent-color); font-weight:bold; display:block; margin-bottom:4px;">カテゴリプリセット選択</label>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                    <select id="preset-category" onchange="updatePresetLevels()" style="width:100%;">
-                        <option value="">カテゴリを選択</option>
-                        <option value="練技">練技</option>
-                    </select>
-                    <div style="display:flex; gap:6px;">
-                        <select id="preset-level" onchange="updatePresetSkills()" disabled style="flex:1;">
-                            <option value="">レベル</option>
-                        </select>
-                        <select id="preset-skill" onchange="applyRengiPreset()" disabled style="flex:2;">
-                            <option value="">練技名を選択</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+  <main class="max-w-7xl mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 mt-1">
 
+    <!-- 左カラム：キャラクター管理 & イニシアティブ (5/12) -->
+    <section class="lg:col-span-5 space-y-4">
+      
+      <!-- キャラクター追加フォーム -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
+        <h2 class="text-md font-bold flex items-center gap-2 mb-3 text-slate-200">
+          <i data-lucide="user-plus" class="w-4 h-4 text-indigo-400"></i> キャラクター追加
+        </h2>
+        <form onsubmit="addCharacter(event)" class="space-y-2.5">
+          <div class="grid grid-cols-12 gap-2">
+            <input type="text" id="char-name" placeholder="名前 (例: シエル)" required class="col-span-7 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+            <select id="char-type" class="col-span-5 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-200">
+              <option value="PC">PC</option>
+              <option value="魔物">魔物 / 敵</option>
+              <option value="NPC">NPC / 伴走</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
             <div>
-                <label style="font-size:0.75rem; color:var(--text-muted)">効果名</label>
-                <input type="text" id="buff-name" placeholder="例: マッスルベアー / 転倒 / 毒" style="width:100%;">
+              <label class="text-[10px] text-slate-400 block mb-0.5">最大HP</label>
+              <input type="number" id="char-hp" placeholder="HP" required min="1" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
             </div>
             <div>
-                <label style="font-size:0.75rem; color:var(--text-muted)">種別</label>
-                <select id="buff-type" style="width:100%;">
-                    <option value="buff">バフ (強化)</option>
-                    <option value="debuff">デバフ (弱体・状態異常)</option>
-                    <option value="neutral">その他 (マーク・記憶)</option>
-                </select>
+              <label class="text-[10px] text-slate-400 block mb-0.5">最大MP</label>
+              <input type="number" id="char-mp" placeholder="MP" required min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
             </div>
             <div>
-                <label style="font-size:0.75rem; color:var(--text-muted)">持続ラウンド数 (0で永続)</label>
-                <input type="number" id="buff-duration" value="3" min="0" style="width:100%;">
+              <label class="text-[10px] text-slate-400 block mb-0.5">先制/防護</label>
+              <input type="text" id="char-note" placeholder="先制15/防5" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
             </div>
-            
-            <div style="font-size:0.75rem; color:var(--text-muted);">クイックデバフ・状態異常:</div>
-            <div style="display:flex; flex-wrap:wrap; gap:4px;">
-                <button class="secondary small" onclick="setBuffPreset('転倒', 'debuff', 0)">転倒</button>
-                <button class="secondary small" onclick="setBuffPreset('毒', 'debuff', 3)">毒</button>
-                <button class="secondary small" onclick="setBuffPreset('麻痺', 'debuff', 3)">麻痺</button>
-            </div>
+          </div>
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-1.5 rounded-lg text-xs transition shadow-md shadow-indigo-950">
+            キャラクターを登録
+          </button>
+        </form>
+      </div>
 
-            <div class="modal-buttons">
-                <button class="secondary" onclick="closeBuffModal()">キャンセル</button>
-                <button onclick="confirmAddBuff()">付与する</button>
-            </div>
+      <!-- キャラクター一覧 -->
+      <div class="space-y-2.5">
+        <div class="flex justify-between items-center px-1">
+          <span class="text-xs font-bold text-slate-400 flex items-center gap-1">
+            <i data-lucide="users" class="w-3.5 h-3.5"></i> 参加者一覧 (<span id="char-count">0</span>)
+          </span>
+          <span class="text-[10px] text-slate-500">※カード選択で練技/ステータスの対象指定</span>
         </div>
-    </div>
+        <div id="character-list" class="space-y-2.5">
+          <!-- JSで動的生成 -->
+        </div>
+      </div>
 
-<script>
-    // --- 状態管理 ---
+    </section>
+
+    <!-- 中央カラム：練技・ステータス付与 & メモ (4/12) -->
+    <section class="lg:col-span-4 space-y-4">
+      
+      <!-- 練技管理 -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
+        <div class="flex justify-between items-center mb-2.5">
+          <h2 class="text-md font-bold flex items-center gap-2 text-slate-200">
+            <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i> 練技リスト
+          </h2>
+          <label class="text-[11px] text-slate-400 flex items-center gap-1.5 cursor-pointer select-none">
+            <input type="checkbox" id="auto-mp-cost" checked class="rounded bg-slate-950 border-slate-700 text-indigo-500 focus:ring-0">
+            MP3自動消費
+          </label>
+        </div>
+
+        <p class="text-[11px] text-slate-400 mb-2.5 bg-slate-950/60 p-1.5 rounded border border-slate-800">
+          💡 対象キャラを選択後、下のボタンを押すとステータスが自動追加されます。
+        </p>
+
+        <!-- 練技レベル別表示 (1LV -> 5LV -> 10LV 順) -->
+        <div class="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+          <!-- 1LV -->
+          <div class="border border-slate-800 rounded-lg p-2 bg-slate-950/40">
+            <div class="text-[11px] font-bold text-emerald-400 mb-1.5 pb-1 border-b border-slate-800 flex justify-between items-center">
+              <span>1LV 練技</span>
+              <span class="text-[9px] text-slate-500">名前(ラウンド数)</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5" id="renwaza-1lv"></div>
+          </div>
+          <!-- 5LV -->
+          <div class="border border-slate-800 rounded-lg p-2 bg-slate-950/40">
+            <div class="text-[11px] font-bold text-emerald-400 mb-1.5 pb-1 border-b border-slate-800 flex justify-between items-center">
+              <span>5LV 練技</span>
+              <span class="text-[9px] text-slate-500">名前(ラウンド数)</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5" id="renwaza-5lv"></div>
+          </div>
+          <!-- 10LV -->
+          <div class="border border-slate-800 rounded-lg p-2 bg-slate-950/40">
+            <div class="text-[11px] font-bold text-emerald-400 mb-1.5 pb-1 border-b border-slate-800 flex justify-between items-center">
+              <span>10LV 練技</span>
+              <span class="text-[9px] text-slate-500">名前(ラウンド数)</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5" id="renwaza-10lv"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 付与ステータス手動追加 -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
+        <h2 class="text-md font-bold flex items-center gap-2 mb-2.5 text-slate-200">
+          <i data-lucide="shield-plus" class="w-4 h-4 text-blue-400"></i> カスタムステータス付与
+        </h2>
+        <form onsubmit="addCustomStatus(event)" class="space-y-2">
+          <input type="text" id="status-name" placeholder="ステータス名 (例: ガードバッシュ, 毒)" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500">
+          <div class="flex gap-2">
+            <div class="w-1/2 flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg px-2">
+              <span class="text-[10px] text-slate-400 whitespace-nowrap">R:</span>
+              <input type="number" id="status-rounds" min="1" value="3" required class="w-full bg-transparent py-1 text-xs text-slate-100 focus:outline-none">
+            </div>
+            <button type="submit" class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-1.5 rounded-lg text-xs transition">
+              対象に付与
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- セッションメモ帳 -->
+      <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800 shadow-md space-y-2">
+        <h2 class="text-xs font-bold flex items-center gap-1.5 text-slate-300">
+          <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-amber-400"></i> セッションメモ / 戦利品
+        </h2>
+        <textarea id="session-memo" oninput="saveMemo()" placeholder="ドロップ品、敵の弱点、作戦などをメモ..." class="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 resize-none focus:outline-none focus:border-amber-500/50"></textarea>
+      </div>
+
+    </section>
+
+    <!-- 右カラム：ダイス機能 & ログ (3/12) -->
+    <section class="lg:col-span-3 space-y-4">
+      
+      <!-- ダイス機能 -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">
+        <h2 class="text-md font-bold flex items-center gap-2 text-slate-200">
+          <i data-lucide="dices" class="w-4 h-4 text-amber-400"></i> ダイスロール
+        </h2>
+
+        <!-- ボタン式ダイス (2d6 & 2d6+X) -->
+        <div class="space-y-2">
+          <button onclick="roll2d6(0)" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2 shadow-md shadow-amber-950">
+            <i data-lucide="dice-5" class="w-4 h-4"></i> 2d6 を振る
+          </button>
+          
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-slate-400 font-semibold whitespace-nowrap">2d6 +</span>
+            <input type="number" id="dice-modifier" value="1" min="1" max="100" class="w-full bg-slate-950 border border-slate-800 rounded-lg py-1 px-2 text-xs text-center font-bold text-amber-300 focus:outline-none">
+            <button onclick="roll2d6WithMod()" class="bg-amber-700 hover:bg-amber-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg transition whitespace-nowrap">
+              ロール
+            </button>
+          </div>
+        </div>
+
+        <!-- 自由入力ダイス -->
+        <div class="pt-2.5 border-t border-slate-800">
+          <label class="text-[10px] text-slate-400 block mb-1">自由入力 (例: 2d6+5, 1d100, 3d6)</label>
+          <form onsubmit="rollCustomDice(event)" class="flex gap-1.5">
+            <input type="text" id="custom-dice-input" placeholder="2d6+3" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs font-mono uppercase text-slate-100 focus:outline-none">
+            <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded-lg text-xs font-semibold transition border border-slate-700">振る</button>
+          </form>
+        </div>
+
+        <!-- SW2.5 簡易威力表ダイス -->
+        <div class="pt-2.5 border-t border-slate-800 space-y-1.5">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+              <i data-lucide="swords" class="w-3 h-3"></i> 威力表ダイス (SW2.5)
+            </label>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">
+            <div>
+              <span class="text-[9px] text-slate-400 block">威力</span>
+              <input type="number" id="key-power" value="20" min="0" max="100" class="w-full bg-slate-950 border border-slate-800 rounded py-0.5 px-1.5 text-xs font-mono text-center">
+            </div>
+            <div>
+              <span class="text-[9px] text-slate-400 block">C値</span>
+              <input type="number" id="key-crit" value="10" min="8" max="13" class="w-full bg-slate-950 border border-slate-800 rounded py-0.5 px-1.5 text-xs font-mono text-center">
+            </div>
+            <div>
+              <span class="text-[9px] text-slate-400 block">修正</span>
+              <input type="number" id="key-mod" value="0" class="w-full bg-slate-950 border border-slate-800 rounded py-0.5 px-1.5 text-xs font-mono text-center">
+            </div>
+          </div>
+          <button onclick="rollKeyTable()" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold py-1 rounded text-xs transition">
+            威力ダイス計算
+          </button>
+        </div>
+
+      </div>
+
+      <!-- ログ表示 -->
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md space-y-2">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <h2 class="text-sm font-bold flex items-center gap-1.5 text-slate-200">
+            <i data-lucide="scroll" class="w-4 h-4 text-slate-400"></i> ログ
+          </h2>
+          <div class="flex items-center gap-2">
+            <button onclick="copyLogs()" class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-0.5 transition" title="ログをコピー">
+              <i data-lucide="copy" class="w-3 h-3"></i> コピー
+            </button>
+            <button onclick="clearAllLogs()" class="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-0.5 transition">
+              <i data-lucide="trash-2" class="w-3 h-3"></i> 全削除
+            </button>
+          </div>
+        </div>
+
+        <div id="log-container" class="space-y-1.5 max-h-[320px] overflow-y-auto text-xs pr-1 font-mono">
+          <!-- JSで動的生成 -->
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- JavaScript -->
+  <script>
+    // --- 練技データ定義 (1LV, 5LV, 10LV 順) ---
+    const renwazaData = {
+      "1LV": [
+        { name: "アンチボディ", rounds: 3 },
+        { name: "オウルビジョン", rounds: 18 },
+        { name: "ガゼルフット", rounds: 3 },
+        { name: "キャッツアイ", rounds: 3 },
+        { name: "ストロングブラッド", rounds: 3 },
+        { name: "ドラゴンテイル", rounds: 18 },
+        { name: "ビートルスキン", rounds: 3 },
+        { name: "マッスルベアー", rounds: 3 },
+        { name: "メディテーション", rounds: 3 },
+        { name: "ラビットイヤー", rounds: 18 }
+      ],
+      "5LV": [
+        { name: "ケンタウロスレッグ", rounds: 1 },
+        { name: "ジャイアントアーム", rounds: 1 },
+        { name: "スフィンクスノレッジ", rounds: 1 },
+        { name: "デーモンフィンガー", rounds: 1 },
+        { name: "ファイアブレス", rounds: 3 },
+        { name: "ワイドウィング", rounds: 18 }
+      ],
+      "10LV": [
+        { name: "カメレオンカムフラージュ", rounds: 3 },
+        { name: "クラーケンスタビリティ", rounds: 3 },
+        { name: "ストライダウォーク", rounds: 18 },
+        { name: "スパイダーウェブ", rounds: 18 },
+        { name: "タイタンフット", rounds: 1 },
+        { name: "トロールバイタル", rounds: 3 },
+        { name: "バルーンシードショット", rounds: 3 },
+        { name: "フェンリルバイト", rounds: 18 }
+      ]
+    };
+
+    // SW2.5 簡易威力表テーブル (2d6出目 3~12 の基本ダメージ概算)
+    const keyTables = {
+      0:   [0, 0, 1, 2, 2, 3, 3, 4, 4, 5],
+      10:  [0, 1, 2, 3, 4, 4, 5, 6, 7, 8],
+      20:  [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      30:  [1, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      40:  [2, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      50:  [3, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+      60:  [4, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      70:  [5, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+      80:  [6, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+      90:  [7, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+      100: [8, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+    };
+
     let state = {
-        characters: [],
-        logs: []
+      round: 1,
+      selectedCharId: null,
+      characters: [],
+      logs: [],
+      memo: ""
     };
 
-    const STORAGE_KEY = 'SW25_SESSION_DATA_V1';
-
-    // --- 練技プリセットデータ ---
-    const RengiData = {
-        "練技": {
-            "1LV": [
-                "アンチボディ",
-                "オウルビジョン",
-                "ガゼルフット",
-                "キャッツアイ",
-                "ストロングブラッド",
-                "ドラゴンテイル",
-                "ビートルスキン",
-                "マッスルベアー",
-                "メディテーション",
-                "ラビットイヤー"
-            ],
-            "5LV": [
-                "ケンタウロスレッグ",
-                "ジャイアントアーム",
-                "スフィンクスノレッジ",
-                "デーモンフィンガー",
-                "ファイアブレス",
-                "ワイドウィング"
-            ],
-            "10LV": [
-                "カメレオンカムフラージュ",
-                "クラーケンスタビリティ",
-                "ストライダウォーク",
-                "スパイダーウェブ",
-                "タイタンフット",
-                "トロールバイタル",
-                "バルーンシードショット",
-                "フェンリルバイト"
-            ]
-        }
-    };
-
-    // --- 初期化 & ローカルストレージ ---
+    // 初期化
     window.addEventListener('DOMContentLoaded', () => {
-        initPresetButtons();
-        loadData();
-        renderAll();
+      loadState();
+      renderRenwazaUI();
+      render();
     });
 
-    function saveData() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-            const statusEl = document.getElementById('save-status');
-            statusEl.innerText = `自動保存済み (${new Date().toLocaleTimeString()})`;
-        } catch (e) {
-            console.error('Save failed:', e);
+    // --- State & LocalStorage ---
+    function saveState() {
+      localStorage.setItem('sw25_helper_state_v2', JSON.stringify(state));
+    }
+
+    function loadState() {
+      const saved = localStorage.getItem('sw25_helper_state_v2');
+      if (saved) {
+        try { 
+          state = JSON.parse(saved); 
+          document.getElementById('session-memo').value = state.memo || "";
+        } catch (e) {}
+      }
+    }
+
+    function render() {
+      document.getElementById('round-display').textContent = `Round ${state.round}`;
+      document.getElementById('char-count').textContent = state.characters.length;
+      renderCharacters();
+      renderLogs();
+      lucide.createIcons();
+      saveState();
+    }
+
+    function saveMemo() {
+      state.memo = document.getElementById('session-memo').value;
+      saveState();
+    }
+
+    // --- キャラクター操作 ---
+    function addCharacter(e) {
+      e.preventDefault();
+      const name = document.getElementById('char-name').value.trim();
+      const type = document.getElementById('char-type').value;
+      const maxHp = parseInt(document.getElementById('char-hp').value);
+      const maxMp = parseInt(document.getElementById('char-mp').value);
+      const note = document.getElementById('char-note').value.trim();
+
+      const char = {
+        id: Date.now() + Math.random(),
+        name,
+        type,
+        maxHp,
+        hp: maxHp,
+        maxMp,
+        mp: maxMp,
+        note,
+        statuses: []
+      };
+
+      state.characters.push(char);
+      if (!state.selectedCharId) state.selectedCharId = char.id;
+      
+      addLog(`[登録] ${type} 「${name}」 (HP:${maxHp} MP:${maxMp})`);
+      
+      document.getElementById('char-name').value = '';
+      document.getElementById('char-hp').value = '';
+      document.getElementById('char-mp').value = '';
+      document.getElementById('char-note').value = '';
+
+      render();
+    }
+
+    function selectCharacter(id) {
+      state.selectedCharId = id;
+      render();
+    }
+
+    function removeCharacter(id) {
+      const char = state.characters.find(c => c.id === id);
+      if (char && confirm(`「${char.name}」を削除しますか？`)) {
+        state.characters = state.characters.filter(c => c.id !== id);
+        if (state.selectedCharId === id) {
+          state.selectedCharId = state.characters[0]?.id || null;
         }
+        addLog(`[削除] 「${char.name}」を一覧から削除しました。`);
+        render();
+      }
     }
 
-    function loadData() {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try {
-                state = JSON.parse(saved);
-                if (!state.characters) state.characters = [];
-                if (!state.logs) state.logs = [];
-                state.characters.forEach(c => {
-                    if (!c.buffs) c.buffs = [];
-                });
-            } catch (e) {
-                console.error('Load failed:', e);
-            }
+    function updateStat(id, stat, delta) {
+      const char = state.characters.find(c => c.id === id);
+      if (!char) return;
+
+      if (stat === 'hp') {
+        char.hp = Math.min(char.maxHp, Math.max(0, char.hp + delta));
+      } else if (stat === 'mp') {
+        char.mp = Math.min(char.maxMp, Math.max(0, char.mp + delta));
+      }
+      render();
+    }
+
+    function changeStatCustom(id, stat) {
+      const char = state.characters.find(c => c.id === id);
+      if (!char) return;
+      const valStr = prompt(`「${char.name}」の${stat.toUpperCase()}変更量 (+数で回復, -数でダメージ):`, "-5");
+      if (valStr !== null) {
+        const val = parseInt(valStr);
+        if (!isNaN(val)) {
+          updateStat(id, stat, val);
+          addLog(`[変動] 「${char.name}」の${stat.toUpperCase()}が ${val > 0 ? '+'+val : val} (現在: ${char[stat]})`);
         }
-    }
-
-    function exportData() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `sw25_session_${new Date().toISOString().slice(0,10)}.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-    }
-
-    function importData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const imported = JSON.parse(e.target.result);
-                if (imported.characters && imported.logs) {
-                    state = imported;
-                    saveData();
-                    renderAll();
-                    addLog('[システム] セッションデータをファイルから読み込みました。');
-                } else {
-                    alert('無効なデータフォーマットです。');
-                }
-            } catch (err) {
-                alert('JSONファイルの読み込みに失敗しました。');
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    function resetAllData() {
-        if (confirm('全てのキャラクターおよびログを消去して初期化しますか？')) {
-            state = { characters: [], logs: [] };
-            saveData();
-            renderAll();
-            addLog('[システム] セッションデータを初期化しました。');
-        }
-    }
-
-    function renderAll() {
-        renderCharacters();
-        renderLogs();
-    }
-
-    // --- プリセットダイスボタン作成 ---
-    function initPresetButtons() {
-        const container = document.getElementById('preset-buttons');
-        const presets = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20];
-        presets.forEach(mod => {
-            const btn = document.createElement('button');
-            btn.innerText = mod === 0 ? '2d6' : `2d6+${mod}`;
-            btn.onclick = () => rollFixed2d6(mod);
-            container.appendChild(btn);
-        });
-    }
-
-    // --- キャラクター機能 ---
-    function addCharacter() {
-        const name = document.getElementById('c-name').value.trim() || '名称未設定';
-        const type = document.getElementById('c-type').value;
-        const init = parseInt(document.getElementById('c-init').value) || 0;
-        const hp = parseInt(document.getElementById('c-hp').value) || 10;
-        const mp = parseInt(document.getElementById('c-mp').value) || 0;
-        const def = parseInt(document.getElementById('c-def').value) || 0;
-
-        const char = {
-            id: Date.now() + Math.random(),
-            name, type, init,
-            hp, maxHp: hp,
-            mp, maxMp: mp,
-            def,
-            buffs: []
-        };
-
-        state.characters.push(char);
-        saveData();
-        renderCharacters();
-        addLog(`[登録] ${name} (${type === 'pc' ? 'PC' : 'エネミー'}) を追加しました。`);
-
-        document.getElementById('c-name').value = '';
-        document.getElementById('c-init').value = '';
-        document.getElementById('c-hp').value = '';
-        document.getElementById('c-mp').value = '';
-        document.getElementById('c-def').value = '';
-    }
-
-    function deleteCharacter(id) {
-        const char = state.characters.find(c => c.id === id);
-        if (char && confirm(`「${char.name}」を削除しますか？`)) {
-            state.characters = state.characters.filter(c => c.id !== id);
-            saveData();
-            renderCharacters();
-            addLog(`[削除] ${char.name} を削除しました。`);
-        }
-    }
-
-    function updateHpMp(id, field, value) {
-        const char = state.characters.find(c => c.id === id);
-        if (char) {
-            char[field] = parseInt(value) || 0;
-            saveData();
-            renderCharacters();
-        }
-    }
-
-    function adjustHpMp(id, field, delta) {
-        const char = state.characters.find(c => c.id === id);
-        if (char) {
-            char[field] = Math.max(0, char[field] + delta);
-            saveData();
-            renderCharacters();
-            addLog(`[ステータス] ${char.name} の ${field.toUpperCase()} が ${delta > 0 ? '+' + delta : delta} (${char[field]}) に変更されました。`);
-        }
-    }
-
-    function sortByInit() {
-        state.characters.sort((a, b) => b.init - a.init);
-        saveData();
-        renderCharacters();
-        addLog(`[行動順] キャラクターを先制順に並び替えました。`);
-    }
-
-    function nextRound() {
-        let logMsgs = [];
-        state.characters.forEach(c => {
-            if (c.buffs && c.buffs.length > 0) {
-                c.buffs.forEach(b => {
-                    if (b.duration > 0) {
-                        b.duration -= 1;
-                        if (b.duration === 0) {
-                            logMsgs.push(`${c.name} の効果「${b.name}」が終了しました。`);
-                        }
-                    }
-                });
-                c.buffs = c.buffs.filter(b => b.duration !== 0);
-            }
-        });
-        saveData();
-        renderCharacters();
-        addLog(`[ラウンド経過] ラウンドを進めました。`);
-        logMsgs.forEach(m => addLog(`[効果終了] ${m}`));
+      }
     }
 
     function renderCharacters() {
-        const list = document.getElementById('char-list');
-        list.innerHTML = '';
+      const container = document.getElementById('character-list');
+      container.innerHTML = '';
 
-        state.characters.forEach(c => {
-            const hpPercent = c.maxHp > 0 ? Math.min(100, Math.max(0, (c.hp / c.maxHp) * 100)) : 0;
-            const mpPercent = c.maxMp > 0 ? Math.min(100, Math.max(0, (c.mp / c.maxMp) * 100)) : 0;
+      if (state.characters.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-600 text-xs bg-slate-900/50 rounded-xl border border-slate-800">キャラクターが追加されていません</div>`;
+        return;
+      }
 
-            const card = document.createElement('div');
-            card.className = `char-card ${c.type}`;
+      state.characters.forEach(char => {
+        const isSelected = char.id === state.selectedCharId;
+        const hpPercent = Math.max(0, Math.min(100, (char.hp / char.maxHp) * 100));
+        const mpPercent = Math.max(0, Math.min(100, (char.mp / char.maxMp) * 100));
 
-            let buffsHtml = (c.buffs || []).map((b, idx) => `
-                <span class="buff-chip ${b.type}">
-                    ${b.name}${b.duration > 0 ? ` (${b.duration}r)` : ''}
-                    <span class="remove-btn" onclick="removeBuff(${c.id}, ${idx})">×</span>
-                </span>
-            `).join('');
+        let typeBadgeClass = 'bg-slate-700 text-slate-300 border-slate-600';
+        if (char.type === 'PC') typeBadgeClass = 'bg-indigo-600/30 text-indigo-300 border-indigo-500/40';
+        if (char.type === '魔物') typeBadgeClass = 'bg-red-600/30 text-red-300 border-red-500/40';
 
-            card.innerHTML = `
-                <div class="char-header">
-                    <div class="char-title">
-                        <span>${c.name}</span>
-                        <span class="badge-type">${c.type === 'pc' ? 'PC' : '敵'}</span>
-                    </div>
-                    <button class="danger small" onclick="deleteCharacter(${c.id})">削除</button>
-                </div>
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-xl border transition-all cursor-pointer relative ${
+          isSelected 
+            ? 'bg-slate-900 border-indigo-500 ring-2 ring-indigo-500/20 shadow-lg' 
+            : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+        }`;
+        card.onclick = () => selectCharacter(char.id);
 
-                <div class="char-info-row">
-                    <div>先制: <strong>${c.init}</strong></div>
-                    <div>防護点: <strong>${c.def}</strong></div>
-                </div>
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-bold border ${typeBadgeClass}">${char.type}</span>
+              <h3 class="font-bold text-sm text-slate-100 flex items-center gap-1.5">
+                ${escapeHtml(char.name)}
+                ${isSelected ? '<span class="w-2 h-2 rounded-full bg-indigo-400 inline-block" title="選択中"></span>' : ''}
+              </h3>
+              ${char.note ? `<span class="text-[10px] text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">${escapeHtml(char.note)}</span>` : ''}
+            </div>
+            <button onclick="event.stopPropagation(); removeCharacter(${char.id})" class="text-slate-500 hover:text-red-400 p-0.5 transition">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
 
-                <div class="gauge-group">
-                    <!-- HP Gauge -->
-                    <div class="gauge-row">
-                        <span style="width:30px; font-weight:bold; color:#e74c3c;">HP</span>
-                        <div class="gauge-bar-container">
-                            <div class="gauge-bar gauge-hp" style="width: ${hpPercent}%;"></div>
-                        </div>
-                        <div class="stat-controls">
-                            <input type="number" value="${c.hp}" onchange="updateHpMp(${c.id}, 'hp', this.value)">
-                            <span>/ ${c.maxHp}</span>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:4px; justify-content:flex-end;">
-                        <button class="secondary small" onclick="adjustHpMp(${c.id}, 'hp', -5)">-5</button>
-                        <button class="secondary small" onclick="adjustHpMp(${c.id}, 'hp', -1)">-1</button>
-                        <button class="secondary small" onclick="adjustHpMp(${c.id}, 'hp', 1)">+1</button>
-                        <button class="secondary small" onclick="adjustHpMp(${c.id}, 'hp', 5)">+5</button>
-                    </div>
+          <!-- HP / MP ゲージ -->
+          <div class="space-y-1 text-xs">
+            <!-- HP -->
+            <div class="flex items-center gap-1.5">
+              <span class="w-5 font-bold text-red-400 text-[11px]">HP</span>
+              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'hp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer group" title="クリックで直接入力">
+                <div class="bg-red-500 h-full transition-all duration-300" style="width: ${hpPercent}%"></div>
+                <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">${char.hp} / ${char.maxHp}</span>
+              </div>
+              <div class="flex gap-0.5">
+                <button onclick="event.stopPropagation(); updateStat(${char.id}, 'hp', -1)" class="bg-slate-800 hover:bg-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700">-1</button>
+                <button onclick="event.stopPropagation(); updateStat(${char.id}, 'hp', -5)" class="bg-slate-800 hover:bg-slate-700 px-1 py-0.5 rounded text-[10px] font-mono text-red-300 border border-slate-700">-5</button>
+                <button onclick="event.stopPropagation(); updateStat(${char.id}, 'hp', 1)" class="bg-slate-800 hover:bg-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700">+1</button>
+              </div>
+            </div>
 
-                    <!-- MP Gauge -->
-                    ${c.maxMp > 0 ? `
-                    <div class="gauge-row" style="margin-top:4px;">
-                        <span style="width:30px; font-weight:bold; color:#3498db;">MP</span>
-                        <div class="gauge-bar-container">
-                            <div class="gauge-bar gauge-mp" style="width: ${mpPercent}%;"></div>
-                        </div>
-                        <div class="stat-controls">
-                            <input type="number" value="${c.mp}" onchange="updateHpMp(${c.id}, 'mp', this.value)">
-                            <span>/ ${c.maxMp}</span>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:4px; justify-content:flex-end;">
-                        <button class="secondary small" onclick="adjustHpMp(${c.id}, 'mp', -1)">-1</button>
-                        <button class="secondary small" onclick="adjustHpMp(${c.id}, 'mp', 1)">+1</button>
-                    </div>
-                    ` : ''}
-                </div>
+            <!-- MP -->
+            <div class="flex items-center gap-1.5">
+              <span class="w-5 font-bold text-blue-400 text-[11px]">MP</span>
+              <div onclick="event.stopPropagation(); changeStatCustom(${char.id}, 'mp')" class="flex-1 bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800 relative cursor-pointer group" title="クリックで直接入力">
+                <div class="bg-blue-500 h-full transition-all duration-300" style="width: ${mpPercent}%"></div>
+                <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">${char.mp} / ${char.maxMp}</span>
+              </div>
+              <div class="flex gap-0.5">
+                <button onclick="event.stopPropagation(); updateStat(${char.id}, 'mp', -1)" class="bg-slate-800 hover:bg-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700">-1</button>
+                <button onclick="event.stopPropagation(); updateStat(${char.id}, 'mp', -3)" class="bg-slate-800 hover:bg-slate-700 px-1 py-0.5 rounded text-[10px] font-mono text-blue-300 border border-slate-700">-3</button>
+                <button onclick="event.stopPropagation(); updateStat(${char.id}, 'mp', 1)" class="bg-slate-800 hover:bg-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-700">+1</button>
+              </div>
+            </div>
+          </div>
 
-                <!-- バフ・デバフ -->
-                <div class="buff-section">
-                    <div class="buff-header">
-                        <span>付与ステータス / バフ</span>
-                        <button class="secondary small" onclick="openBuffModal(${c.id})">+ 追加</button>
-                    </div>
-                    <div class="buff-list">
-                        ${buffsHtml.length > 0 ? buffsHtml : '<span style="font-size:0.75rem; color:var(--text-muted);">なし</span>'}
-                    </div>
-                </div>
-            `;
-            list.appendChild(card);
+          <!-- 付与ステータス一覧 -->
+          <div class="mt-2 pt-1.5 border-t border-slate-800/80 flex flex-wrap gap-1">
+            ${char.statuses.length === 0 ? '<span class="text-[10px] text-slate-600 italic">付与ステータスなし</span>' : ''}
+            ${char.statuses.map(st => `
+              <span class="inline-flex items-center gap-1 bg-slate-950 text-emerald-300 border border-emerald-500/30 text-[10px] px-2 py-0.5 rounded-full shadow-sm">
+                ${escapeHtml(st.name)} <strong class="text-amber-400 font-mono">(${st.rounds}R)</strong>
+                <button onclick="event.stopPropagation(); removeStatus(${char.id}, ${st.id})" class="hover:text-red-400 ml-0.5">
+                  <i data-lucide="x" class="w-3 h-3"></i>
+                </button>
+              </span>
+            `).join('')}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // --- 練技 UI 描画 & 発動 ---
+    function renderRenwazaUI() {
+      Object.keys(renwazaData).forEach(lv => {
+        const targetId = `renwaza-${lv.toLowerCase()}`;
+        const container = document.getElementById(targetId);
+        container.innerHTML = '';
+
+        renwazaData[lv].forEach(item => {
+          const btn = document.createElement('button');
+          btn.className = 'bg-slate-900 hover:bg-emerald-900/40 hover:border-emerald-500/50 border border-slate-800 text-slate-200 text-xs py-1.5 px-2 rounded-lg text-left flex justify-between items-center transition group';
+          btn.onclick = () => castRenwaza(item.name, item.rounds);
+          btn.innerHTML = `
+            <span class="font-medium group-hover:text-emerald-300 text-[11px]">${item.name}</span>
+            <span class="text-[10px] text-emerald-400/80 font-mono font-bold">(${item.rounds})</span>
+          `;
+          container.appendChild(btn);
         });
+      });
     }
 
-    // --- バフ・デバフ機能 & 階層プルダウン制御 ---
-    function openBuffModal(charId) {
-        document.getElementById('modal-char-id').value = charId;
-        document.getElementById('buff-name').value = '';
-        document.getElementById('buff-type').value = 'buff';
-        document.getElementById('buff-duration').value = '3';
+    function castRenwaza(name, rounds) {
+      const selectedChar = state.characters.find(c => c.id === state.selectedCharId);
+      const autoMp = document.getElementById('auto-mp-cost').checked;
 
-        // 階層セレクトのリセット
-        document.getElementById('preset-category').value = '';
-        document.getElementById('preset-level').innerHTML = '<option value="">レベル</option>';
-        document.getElementById('preset-level').disabled = true;
-        document.getElementById('preset-skill').innerHTML = '<option value="">練技名を選択</option>';
-        document.getElementById('preset-skill').disabled = true;
+      if (!selectedChar) {
+        alert("練技を付与する対象のキャラクターを一覧から選択(クリック)してください。");
+        return;
+      }
 
-        document.getElementById('buff-modal').classList.add('active');
+      if (autoMp && selectedChar.mp < 3) {
+        if (!confirm(`「${selectedChar.name}」のMPが不足しています(現在MP: ${selectedChar.mp})。そのまま使用しますか？`)) {
+          return;
+        }
+      }
+
+      if (autoMp && selectedChar.mp >= 3) {
+        selectedChar.mp -= 3;
+      }
+
+      addStatusToChar(selectedChar, `練技:${name}`, rounds);
+      addLog(`[練技] 「${selectedChar.name}」【${name}】発動(${rounds}R)${autoMp ? ' [MP-3]' : ''}`);
+      render();
     }
 
-    function closeBuffModal() {
-        document.getElementById('buff-modal').classList.remove('active');
+    function addCustomStatus(e) {
+      e.preventDefault();
+      const selectedChar = state.characters.find(c => c.id === state.selectedCharId);
+      if (!selectedChar) {
+        alert("ステータスを付与する対象のキャラクターを一覧から選択してください。");
+        return;
+      }
+
+      const name = document.getElementById('status-name').value.trim();
+      const rounds = parseInt(document.getElementById('status-rounds').value);
+
+      addStatusToChar(selectedChar, name, rounds);
+      addLog(`[ステータス] 「${selectedChar.name}」に【${name}】(${rounds}R) を付与`);
+      
+      document.getElementById('status-name').value = '';
+      render();
     }
 
-    function updatePresetLevels() {
-        const catSelect = document.getElementById('preset-category');
-        const lvlSelect = document.getElementById('preset-level');
-        const sklSelect = document.getElementById('preset-skill');
+    function addStatusToChar(char, name, rounds) {
+      char.statuses.push({
+        id: Date.now() + Math.random(),
+        name,
+        rounds
+      });
+    }
 
-        lvlSelect.innerHTML = '<option value="">レベル</option>';
-        sklSelect.innerHTML = '<option value="">練技名を選択</option>';
-        sklSelect.disabled = true;
+    function removeStatus(charId, statusId) {
+      const char = state.characters.find(c => c.id === charId);
+      if (char) {
+        const status = char.statuses.find(s => s.id === statusId);
+        char.statuses = char.statuses.filter(s => s.id !== statusId);
+        if (status) addLog(`[解除] 「${char.name}」の【${status.name}】を手動解除しました。`);
+        render();
+      }
+    }
 
-        const cat = catSelect.value;
-        if (cat && RengiData[cat]) {
-            lvlSelect.disabled = false;
-            Object.keys(RengiData[cat]).forEach(lvl => {
-                const opt = document.createElement('option');
-                opt.value = lvl;
-                opt.textContent = lvl;
-                lvlSelect.appendChild(opt);
-            });
+    // --- ラウンド進行機能 ---
+    function nextRound() {
+      state.round += 1;
+      let expiredLogs = [];
+
+      state.characters.forEach(char => {
+        char.statuses.forEach(st => {
+          st.rounds -= 1;
+          if (st.rounds <= 0) {
+            expiredLogs.push(`「${char.name}」の【${st.name}】の効果が切れました。`);
+          }
+        });
+        char.statuses = char.statuses.filter(st => st.rounds > 0);
+      });
+
+      addLog(`=== Round ${state.round} 開始 ===`);
+      expiredLogs.forEach(msg => addLog(`[自動解除] ${msg}`));
+      render();
+    }
+
+    function resetRound() {
+      if (confirm("ラウンド数を Round 1 にリセットしますか？ (ステータスは維持されます)")) {
+        state.round = 1;
+        addLog(`[リセット] ラウンド数を 1 に戻しました。`);
+        render();
+      }
+    }
+
+    // --- ダイス機能 ---
+    function roll2d6(mod = 0) {
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const diceSum = d1 + d2;
+      const total = diceSum + mod;
+
+      let extraText = "";
+      if (d1 === 1 && d2 === 1) extraText = " <span class='text-red-400 font-bold'>【自動失敗/ファンブル】</span>";
+      if (d1 === 6 && d2 === 6) extraText = " <span class='text-amber-400 font-bold'>【自動成功/クリティカル】</span>";
+
+      const modText = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : "";
+      addLog(`[ダイス] 2d6${modText} ➔ [${d1},${d2}]${modText} = <strong class="text-amber-300 text-sm">${total}</strong>${extraText}`);
+    }
+
+    function roll2d6WithMod() {
+      const mod = parseInt(document.getElementById('dice-modifier').value) || 0;
+      roll2d6(mod);
+    }
+
+    function rollCustomDice(e) {
+      e.preventDefault();
+      const input = document.getElementById('custom-dice-input').value.trim();
+      const match = input.match(/^(\d+)d(\d+)([\+\-]\d+)?$/i);
+
+      if (!match) {
+        alert("ダイス入力の形式が不正です (例: 2d6, 1d100, 3d6+2)");
+        return;
+      }
+
+      const count = parseInt(match[1]);
+      const sides = parseInt(match[2]);
+      const mod = match[3] ? parseInt(match[3]) : 0;
+
+      if (count > 50 || sides > 1000) {
+        alert("ダイス数または面数が大きすぎます。");
+        return;
+      }
+
+      let rolls = [];
+      let sum = 0;
+      for (let i = 0; i < count; i++) {
+        const val = Math.floor(Math.random() * sides) + 1;
+        rolls.push(val);
+        sum += val;
+      }
+
+      const total = sum + mod;
+      const modText = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : "";
+      addLog(`[自由ダイス] ${input} ➔ [${rolls.join(',')}]${modText} = <strong class="text-amber-300 text-sm">${total}</strong>`);
+    }
+
+    // SW2.5 威力表計算ダイス
+    function rollKeyTable() {
+      const powerInput = parseInt(document.getElementById('key-power').value) || 0;
+      const critVal = parseInt(document.getElementById('key-crit').value) || 10;
+      const modVal = parseInt(document.getElementById('key-mod').value) || 0;
+
+      const powers = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+      const closestPower = powers.reduce((prev, curr) => 
+        Math.abs(curr - powerInput) < Math.abs(prev - powerInput) ? curr : prev
+      );
+
+      let totalDamage = 0;
+      let rollHistory = [];
+      let isCrit = true;
+      let depth = 0;
+
+      while (isCrit && depth < 10) {
+        depth++;
+        const d1 = Math.floor(Math.random() * 6) + 1;
+        const d2 = Math.floor(Math.random() * 6) + 1;
+        const sum = d1 + d2;
+
+        if (sum <= 2) {
+          rollHistory.push(`[1,1]=ゾロ目0`);
+          isCrit = false;
+          break;
+        }
+
+        const tableIndex = Math.min(9, Math.max(0, sum - 3));
+        const dmg = keyTables[closestPower][tableIndex];
+        totalDamage += dmg;
+
+        if (sum >= critVal) {
+          rollHistory.push(`[${d1},${d2}]=${sum}(C!)➔${dmg}`);
         } else {
-            lvlSelect.disabled = true;
+          rollHistory.push(`[${d1},${d2}]=${sum}➔${dmg}`);
+          isCrit = false;
         }
-    }
+      }
 
-    function updatePresetSkills() {
-        const catSelect = document.getElementById('preset-category');
-        const lvlSelect = document.getElementById('preset-level');
-        const sklSelect = document.getElementById('preset-skill');
-
-        sklSelect.innerHTML = '<option value="">練技名を選択</option>';
-
-        const cat = catSelect.value;
-        const lvl = lvlSelect.value;
-        if (cat && lvl && RengiData[cat][lvl]) {
-            sklSelect.disabled = false;
-            RengiData[cat][lvl].forEach(skill => {
-                const opt = document.createElement('option');
-                opt.value = skill;
-                opt.textContent = skill;
-                sklSelect.appendChild(opt);
-            });
-        } else {
-            sklSelect.disabled = true;
-        }
-    }
-
-    function applyRengiPreset() {
-        const sklSelect = document.getElementById('preset-skill');
-        const skillName = sklSelect.value;
-        if (skillName) {
-            setBuffPreset(skillName, 'buff', 3);
-        }
-    }
-
-    function setBuffPreset(name, type, duration) {
-        document.getElementById('buff-name').value = name;
-        document.getElementById('buff-type').value = type;
-        document.getElementById('buff-duration').value = duration;
-    }
-
-    function confirmAddBuff() {
-        const charId = parseFloat(document.getElementById('modal-char-id').value);
-        const name = document.getElementById('buff-name').value.trim();
-        const type = document.getElementById('buff-type').value;
-        const duration = parseInt(document.getElementById('buff-duration').value) || 0;
-
-        if (!name) {
-            alert('効果名を入力してください。');
-            return;
-        }
-
-        const char = state.characters.find(c => c.id === charId);
-        if (char) {
-            if (!char.buffs) char.buffs = [];
-            char.buffs.push({ name, type, duration });
-            saveData();
-            renderCharacters();
-            addLog(`[バフ付与] ${char.name} に「${name}」(${type === 'buff' ? 'バフ' : type === 'debuff' ? 'デバフ' : '状態'})を付与しました。`);
-        }
-        closeBuffModal();
-    }
-
-    function removeBuff(charId, buffIndex) {
-        const char = state.characters.find(c => c.id === charId);
-        if (char && char.buffs && char.buffs[buffIndex]) {
-            const removed = char.buffs.splice(buffIndex, 1)[0];
-            saveData();
-            renderCharacters();
-            addLog(`[バフ解除] ${char.name} の「${removed.name}」を解除しました。`);
-        }
-    }
-
-    // --- ダイス計算・判定 ---
-    function rollDice(num, sides) {
-        let results = [];
-        let total = 0;
-        for (let i = 0; i < num; i++) {
-            let r = Math.floor(Math.random() * sides) + 1;
-            results.push(r);
-            total += r;
-        }
-        return { results, total };
-    }
-
-    function rollFixed2d6(mod) {
-        const { results, total } = rollDice(2, 6);
-        const finalTotal = total + mod;
-        let isSpecial = '';
-        if (total === 2) isSpecial = ' <span class="fail">【自動失敗 (ピンゾロ)】</span>';
-        if (total === 12) isSpecial = ' <span class="crit">【自動成功 (ゾロ目)】</span>';
-
-        addLog(`[2d6] 出目:[${results.join(',')}] ${mod >= 0 ? '+' + mod : mod} = <strong>${finalTotal}</strong>${isSpecial}`);
-    }
-
-    function rollCustomDice() {
-        const input = document.getElementById('custom-dice').value.trim();
-        const match = input.match(/^(\d+)d(\d+)([\+\-]\d+)?$/i);
-        if (!match) {
-            alert('入力形式が正しくありません (例: 2d6+3, 1d100, 3d6)');
-            return;
-        }
-        const num = parseInt(match[1]);
-        const sides = parseInt(match[2]);
-        const mod = parseInt(match[3]) || 0;
-
-        const { results, total } = rollDice(num, sides);
-        const finalTotal = total + mod;
-        addLog(`[カスタム] ${input} ➔ 出目:[${results.join(',')}] ${mod !== 0 ? (mod > 0 ? '+' + mod : mod) : ''} = <strong>${finalTotal}</strong>`);
-    }
-
-    function rollSW25Dice() {
-        const mod = parseInt(document.getElementById('sw-mod').value) || 0;
-        const crit = parseInt(document.getElementById('sw-crit').value) || 10;
-
-        let currentRoll = rollDice(2, 6);
-        let history = [`[${currentRoll.results.join(',')}]`];
-        let baseSum = currentRoll.total;
-
-        if (baseSum === 2) {
-            addLog(`[判定] 出目:[1,1] ➔ <span class="fail">自動失敗 (ピンゾロ)</span>`);
-            return;
-        }
-
-        let isCrit = false;
-        let extraTotal = 0;
-
-        // SW2.5 クリティカル(振り足し)処理
-        while (currentRoll.total >= crit && currentRoll.total !== 2) {
-            isCrit = true;
-            currentRoll = rollDice(2, 6);
-            history.push(`+ [${currentRoll.results.join(',')}]`);
-            extraTotal += currentRoll.total;
-            if (history.length > 15) break; // 無限ループ防止
-        }
-
-        const finalTotal = baseSum + extraTotal + mod;
-        const critText = isCrit ? ' <span class="crit">【クリティカル!】</span>' : '';
-        addLog(`[SW2.5判定] 出目:${history.join(' ')} ${mod >= 0 ? '+' + mod : mod} = <strong>${finalTotal}</strong>${critText} (C値:${crit})`);
+      const finalDamage = totalDamage + modVal;
+      const modStr = modVal !== 0 ? (modVal > 0 ? `+${modVal}` : `${modVal}`) : "";
+      addLog(`[威力K${closestPower}@${critVal}${modStr}] ${rollHistory.join(' ')} ${modStr} = <strong class="text-amber-300 text-sm">${finalDamage}</strong>ダメ`);
     }
 
     // --- ログ機能 ---
-    function addLog(msg) {
-        const time = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const logItem = { id: Date.now() + Math.random(), time, text: msg };
-        state.logs.unshift(logItem);
-        if (state.logs.length > 100) state.logs.pop(); // 100件まで保持
-        saveData();
-        renderLogs();
+    function addLog(text) {
+      const logItem = {
+        id: Date.now() + Math.random(),
+        time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        text
+      };
+      state.logs.unshift(logItem);
+      if (state.logs.length > 100) state.logs.pop();
+      renderLogs();
+      saveState();
     }
 
     function deleteLog(id) {
-        state.logs = state.logs.filter(l => l.id !== id);
-        saveData();
-        renderLogs();
+      state.logs = state.logs.filter(l => l.id !== id);
+      renderLogs();
+      saveState();
     }
 
     function clearAllLogs() {
-        if (confirm('全てのログを消去しますか？')) {
-            state.logs = [];
-            saveData();
-            renderLogs();
-        }
+      if (confirm("全てのログを削除しますか？")) {
+        state.logs = [];
+        renderLogs();
+        saveState();
+      }
+    }
+
+    function copyLogs() {
+      const plainText = state.logs.map(l => `[${l.time}] ${l.text.replace(/<[^>]*>?/gm, '')}`).reverse().join('\n');
+      navigator.clipboard.writeText(plainText).then(() => {
+        alert("ログテキストをクリップボードにコピーしました。");
+      });
     }
 
     function renderLogs() {
-        const container = document.getElementById('log-list');
-        container.innerHTML = '';
-        state.logs.forEach(l => {
-            const item = document.createElement('div');
-            item.className = 'log-item';
-            item.innerHTML = `
-                <span class="log-time">${l.time}</span>
-                <span class="log-content">${l.text}</span>
-                <button class="secondary small" style="padding:0 4px; font-size:0.65rem;" onclick="deleteLog(${l.id})">×</button>
-            `;
-            container.appendChild(item);
-        });
+      const container = document.getElementById('log-container');
+      container.innerHTML = '';
+
+      if (state.logs.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-slate-600">ログはありません</div>`;
+        return;
+      }
+
+      state.logs.forEach(log => {
+        const div = document.createElement('div');
+        div.className = 'bg-slate-950/70 p-1.5 px-2 rounded border border-slate-800 flex justify-between items-start gap-1.5 leading-snug';
+        div.innerHTML = `
+          <div class="flex-1 overflow-hidden">
+            <span class="text-slate-500 text-[10px]">[${log.time}]</span>
+            <span class="text-slate-200 text-[11px]">${log.text}</span>
+          </div>
+          <button onclick="deleteLog(${log.id})" class="text-slate-600 hover:text-red-400 p-0.5 transition shrink-0">
+            <i data-lucide="trash-2" class="w-3 h-3"></i>
+          </button>
+        `;
+        container.appendChild(div);
+      });
+      lucide.createIcons();
     }
-</script>
+
+    // --- JSONインポート / エクスポート ---
+    function exportData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `sw25_session_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importData() {
+      document.getElementById('import-file').click();
+    }
+
+    function handleImportFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported && Array.isArray(imported.characters)) {
+            state = imported;
+            if (state.memo) document.getElementById('session-memo').value = state.memo;
+            render();
+            alert("セッションデータを無事に復元しました。");
+          } else {
+            alert("ファイル形式が正しくありません。");
+          }
+        } catch (err) {
+          alert("JSONの読み込みに失敗しました。");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    }
+  </script>
 </body>
 </html>
